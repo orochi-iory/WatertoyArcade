@@ -1,642 +1,75 @@
-body {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    min-height: 100vh;
-    background-color: #87CEEB;
-    margin: 0;
-    padding: 10px;
-    box-sizing: border-box;
-    font-family: 'Arial', sans-serif;
-    overflow: hidden;
-    -webkit-tap-highlight-color: transparent;
-}
+/* Estilos completos como en la respuesta anterior */
+body { display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 100vh; background-color: #87CEEB; margin: 0; padding: 10px; box-sizing: border-box; font-family: 'Arial', sans-serif; overflow: hidden; -webkit-tap-highlight-color: transparent; }
+.game-container { display: flex; flex-direction: column; align-items: center; width: 100%; max-width: 550px; }
+.game-title-bar { font-size: 24px; font-weight: bold; color: #fff; text-shadow: 2px 2px 3px rgba(0,0,0,0.5); margin-bottom: 5px; padding: 5px 10px; background-color: #FFA500; border-radius: 10px 10px 0 0; width: calc(100% - 20px); max-width: 450px; text-align: center; box-sizing: border-box; }
+#messageBoard { font-size: 13px; color: #2F4F4F; background-color: rgba(255, 255, 224, 0.9); padding: 6px 10px; border-radius: 5px; margin-bottom: 8px; min-height: 20px;  text-align: center; width: calc(100% - 20px); max-width: 450px; box-sizing: border-box; border: 1px solid #ddd; transition: opacity 0.3s ease-out; }
+.game-console { background-color: #FFA500; border-radius: 0 0 30px 30px; padding: 10px; box-shadow: 0 10px 20px rgba(0,0,0,0.3), inset 0 0 15px rgba(0,0,0,0.2); display: flex; flex-direction: column; align-items: center; width: 100%; box-sizing: border-box; }
+.screen-area { width: 100%; max-width: 450px; height: 400px; background-color: #ADD8E6; border: 5px solid #444; border-radius: 15px; position: relative; overflow: hidden; box-shadow: inset 0 0 10px rgba(0,0,0,0.5); margin-bottom: 15px; }
+#gameCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 5; }
+.underwater-bg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(to bottom, #87CEFA, #4682B4); opacity: 0.7; z-index: 0; }
 
-.game-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    width: 100%;
-    max-width: 550px;
-}
+#startScreen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 20, 40, 0.85); color: white; /* display: flex; <- Lo maneja JS */ flex-direction: column; justify-content: center; align-items: center; text-align: center; z-index: 200; border-radius: 13px; padding: 20px; box-sizing: border-box; }
+#startScreen h1 { font-size: 2.8em; color: #FFA500; margin-bottom: 10px; text-shadow: 2px 2px 4px #000; }
+#startScreen p { font-size: 1.1em; margin: 8px 0; }
 
-.game-title-bar {
-    font-size: 24px;
-    font-weight: bold;
-    color: #fff;
-    text-shadow: 2px 2px 3px rgba(0,0,0,0.5);
-    margin-bottom: 5px;
-    padding: 5px 10px;
-    background-color: #FFA500;
-    border-radius: 10px 10px 0 0;
-    width: calc(100% - 20px);
-    max-width: 450px;
-    text-align: center;
-    box-sizing: border-box;
-}
+.mode-select-button { padding: 14px 25px; font-size: 1.2em; color: white; border: none; border-radius: 10px; cursor: pointer; transition: all 0.1s ease; margin: 8px; min-width: 200px; }
+.mode-select-button:active { transform: translateY(3px); }
+.normal-mode-button { background-color: #2ECC40; box-shadow: 0 5px #1e8a2b; }
+.normal-mode-button:hover { background-color: #27ae60; }
+.normal-mode-button:active { box-shadow: 0 2px #1e8a2b; }
+.arcade-mode-button { background-color: #E74C3C; box-shadow: 0 5px #c0392b; }
+.arcade-mode-button:hover { background-color: #c23a2b; }
+.arcade-mode-button:active { box-shadow: 0 2px #c0392b; }
+.how-to-play-main-button { background-color: #3498DB; box-shadow: 0 5px #2980b9; padding: 12px 22px; font-size: 1.1em; color: white; border: none; border-radius: 8px; cursor: pointer; transition: all 0.1s ease; margin-top: 15px; margin-bottom: 15px; }
+.how-to-play-main-button:hover { background-color: #2c81ba; }
+.how-to-play-main-button:active { transform: translateY(3px); box-shadow: 0 2px #2980b9; }
+.credits { font-size: 0.9em !important; color: #ccc; line-height: 1.4; }
 
-#messageBoard {
-    font-size: 13px;
-    color: #2F4F4F;
-    background-color: rgba(255, 255, 224, 0.9);
-    padding: 6px 10px;
-    border-radius: 5px;
-    margin-bottom: 8px;
-    min-height: 20px; 
-    text-align: center;
-    width: calc(100% - 20px);
-    max-width: 450px;
-    box-sizing: border-box;
-    border: 1px solid #ddd;
-    transition: opacity 0.3s ease-out;
-}
-
-
-.game-console {
-    background-color: #FFA500; 
-    border-radius: 0 0 30px 30px;
-    padding: 10px;
-    box-shadow: 0 10px 20px rgba(0,0,0,0.3), inset 0 0 15px rgba(0,0,0,0.2);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    width: 100%;
-    box-sizing: border-box;
-}
-
-.screen-area {
-    width: 100%; 
-    max-width: 450px; 
-    height: 400px; 
-    background-color: #ADD8E6; 
-    border: 5px solid #444;
-    border-radius: 15px;
-    position: relative;
-    overflow: hidden;
-    box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
-    margin-bottom: 15px; 
-}
-
-#gameCanvas {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    z-index: 5;
-}
-
-.underwater-bg {
-    position: absolute;
-    top: 0; left: 0; width: 100%; height: 100%;
-    background: linear-gradient(to bottom, #87CEFA, #4682B4);
-    opacity: 0.7; z-index: 0;
-}
-
-#startScreen {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 20, 40, 0.85); 
-    color: white;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    text-align: center;
-    z-index: 200; 
-    border-radius: 13px; 
-    padding: 20px;
-    box-sizing: border-box;
-}
-
-#startScreen h1 {
-    font-size: 2.8em;
-    color: #FFA500;
-    margin-bottom: 15px;
-    text-shadow: 2px 2px 4px #000;
-}
-
-#startScreen p {
-    font-size: 1.2em;
-    margin: 10px 0;
-}
-
-#startGameButton, #howToPlayButton {
-    padding: 15px 30px;
-    font-size: 1.3em;
-    color: white;
-    border: none;
-    border-radius: 10px;
-    cursor: pointer;
-    transition: all 0.1s ease;
-    margin-top: 15px; 
-}
-
-#startGameButton {
-    background-color: #2ECC40;
-    box-shadow: 0 5px #1e8a2b;
-    margin-bottom: 10px; 
-}
-#startGameButton:hover {
-    background-color: #27ae60;
-}
-#startGameButton:active {
-    transform: translateY(3px);
-    box-shadow: 0 2px #1e8a2b;
-}
-
-#howToPlayButton {
-    background-color: #3498DB; 
-    box-shadow: 0 5px #2980b9;
-    margin-bottom: 20px; 
-}
-#howToPlayButton:hover {
-    background-color: #2c81ba;
-}
-#howToPlayButton:active {
-    transform: translateY(3px);
-    box-shadow: 0 2px #2980b9;
-}
-
-
-.credits {
-    font-size: 0.9em !important;
-    color: #ccc;
-    line-height: 1.4;
-}
-
-
-.controls-panel {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start; 
-    width: 100%;
-    max-width: 450px; 
-    padding: 0 10px; 
-    box-sizing: border-box;
-}
-
-.control-column {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 10px; 
-}
-
-.control-button {
-    width: 70px;  
-    height: 70px;
-    border-radius: 50%; 
-    font-size: 20px;
-    font-weight: bold;
-    color: white;
-    border: none;
-    cursor: pointer;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 0;
-    box-shadow: 0 5px #666, 0 3px 5px rgba(0,0,0,0.3);
-    transition: all 0.1s ease;
-    user-select: none; 
-    -webkit-user-select: none;
-}
-
-.control-button:active {
-    transform: translateY(3px);
-    box-shadow: 0 2px #444;
-}
-
-.tilt-button {
-    background-color: #4682B4; 
-    box-shadow: 0 5px #2a628f, 0 3px 5px rgba(0,0,0,0.3);
-}
-.tilt-button:active {
-    box-shadow: 0 2px #2a628f;
-}
-
-
-.jet-button {
-    background-color: #FF4500; 
-    box-shadow: 0 5px #D2691E, 0 3px 5px rgba(0,0,0,0.3);
-}
-.jet-button:active {
-    box-shadow: 0 2px #D2691E;
-}
-
-.score-display-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center; /* Centra los botones verticalmente */
-    gap: 8px;
-    flex-grow: 1; 
-    padding: 0 10px;
-    min-height: 70px; /* Para mantener la altura si solo hay botones */
-}
-
-.reset-button, .fullscreen-button, .sensor-button {
-    padding: 8px 12px;
-    font-size: 14px;
-    color: white;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    box-shadow: 0 3px #444;
-    transition: transform 0.1s ease, box-shadow 0.1s ease, background-color 0.2s ease;
-    margin-top: 5px; 
-}
-.reset-button:active, .fullscreen-button:active, .sensor-button:active {
-    transform: translateY(2px);
-    box-shadow: 0 1px #222;
-}
-
+.controls-panel { display: flex; justify-content: space-between; align-items: flex-start; width: 100%; max-width: 450px; padding: 0 10px; box-sizing: border-box; }
+.control-column { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.control-button { width: 70px; height: 70px; border-radius: 50%; font-size: 20px; font-weight: bold; color: white; border: none; cursor: pointer; display: flex; justify-content: center; align-items: center; padding: 0; box-shadow: 0 5px #666, 0 3px 5px rgba(0,0,0,0.3); transition: all 0.1s ease; user-select: none; -webkit-user-select: none; }
+.control-button:active { transform: translateY(3px); box-shadow: 0 2px #444; }
+.tilt-button { background-color: #4682B4; box-shadow: 0 5px #2a628f, 0 3px 5px rgba(0,0,0,0.3); }
+.tilt-button:active { box-shadow: 0 2px #2a628f; }
+.jet-button { background-color: #FF4500; box-shadow: 0 5px #D2691E, 0 3px 5px rgba(0,0,0,0.3); }
+.jet-button:active { box-shadow: 0 2px #D2691E; }
+.score-display-container { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; flex-grow: 1; padding: 0 10px; min-height: 70px; }
+.reset-button, .fullscreen-button, .sensor-button { padding: 8px 12px; font-size: 14px; color: white; border: none; border-radius: 5px; cursor: pointer; box-shadow: 0 3px #444; transition: transform 0.1s ease, box-shadow 0.1s ease, background-color 0.2s ease; margin-top: 5px; }
+.reset-button:active, .fullscreen-button:active, .sensor-button:active { transform: translateY(2px); box-shadow: 0 1px #222; }
 .reset-button { background-color: #6A5ACD; box-shadow: 0 3px #483D8B; }
 .fullscreen-button { background-color: #20B2AA; box-shadow: 0 3px #167d75; font-size: 18px; }
 .sensor-button { background-color: #FF8C00; box-shadow: 0 3px #cc7000; }
-.sensor-button--activating {
-    transform: scale(1.1);
-    background-color: #e67e22 !important; 
-}
+.sensor-button--activating { transform: scale(1.1); background-color: #e67e22 !important; }
 
+#endGameScreen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 30, 60, 0.9); color: white; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; padding: 20px; box-sizing: border-box; text-align: center; font-family: 'Arial', sans-serif; opacity: 0; visibility: hidden; transition: opacity 0.5s ease-in-out, visibility 0.5s ease-in-out; }
+#endGameScreen.visible { opacity: 1; visibility: visible; }
+#endGameScreen h2 { font-size: 2.5em; color: #FFD700; margin-bottom: 20px; text-shadow: 2px 2px 4px #000; }
+#endGameScreen p { font-size: 1.2em; line-height: 1.6; margin: 8px 0; }
+#endGameScreen h3 { font-size: 2em; color: #90EE90; margin-top: 25px; margin-bottom: 30px; text-shadow: 1px 1px 3px #000; }
+#endGameScreen button { padding: 12px 25px; font-size: 1.1em; background-color: #2ECC40; color: white; border: none; border-radius: 8px; cursor: pointer; box-shadow: 0 4px #1e8a2b; transition: all 0.1s ease; margin-top: 10px;}
+#endGameScreen button:hover { background-color: #27ae60; }
+#endGameScreen button:active { transform: translateY(2px); box-shadow: 0 2px #1e8a2b; }
 
-#endGameScreen {
-    position: fixed; 
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 30, 60, 0.9); 
-    color: white;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    z-index: 1000; 
-    padding: 20px;
-    box-sizing: border-box;
-    text-align: center;
-    font-family: 'Arial', sans-serif;
-    opacity: 0; 
-    visibility: hidden; 
-    transition: opacity 0.5s ease-in-out, visibility 0.5s ease-in-out;
-}
-#endGameScreen.visible {
-    opacity: 1;
-    visibility: visible;
-}
+.modal-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.8); /* display: none; <- Lo maneja JS */ justify-content: center; align-items: center; z-index: 900; padding: 15px; box-sizing: border-box; }
+.modal-content { background-color: #2c3e50; color: #ecf0f1; padding: 20px; border-radius: 10px; width: 90%; max-width: 500px; max-height: 85vh; overflow-y: auto; box-shadow: 0 5px 15px rgba(0,0,0,0.5); position: relative; scrollbar-width: thin; scrollbar-color: #FFA500 #2c3e50; }
+.modal-content::-webkit-scrollbar { width: 8px; }
+.modal-content::-webkit-scrollbar-track { background: #2c3e50; border-radius: 10px; }
+.modal-content::-webkit-scrollbar-thumb { background-color: #FFA500; border-radius: 10px; border: 2px solid #2c3e50; }
+.modal-content h2 { color: #FFA500; text-align: center; margin-top: 0; margin-bottom: 15px; }
+.modal-content h3 { color: #3498DB; margin-top: 12px; margin-bottom: 8px; border-bottom: 1px solid #4a6c8c; padding-bottom: 4px; font-size: 1.1em; }
+.modal-content ul { list-style-position: inside; padding-left: 0px; margin-bottom: 12px; }
+.modal-content li { margin-bottom: 6px; line-height: 1.4; font-size: 0.95em; }
+.modal-content p { line-height: 1.5; margin-bottom: 8px; font-size: 0.95em; }
+.modal-content strong { color: #F1C40F; }
+.close-button { position: absolute; top: 8px; right: 12px; font-size: 24px; font-weight: bold; color: #ecf0f1; cursor: pointer; padding: 2px 5px; line-height: 1; }
+.close-button:hover { color: #FFA500; }
+.instructions-section { margin-bottom: 15px; }
 
-#endGameScreen h2 {
-    font-size: 2.5em;
-    color: #FFD700; 
-    margin-bottom: 20px;
-    text-shadow: 2px 2px 4px #000;
-}
-#endGameScreen p {
-    font-size: 1.2em;
-    line-height: 1.6;
-    margin: 8px 0;
-}
-#endGameScreen h3 {
-    font-size: 2em;
-    color: #90EE90; 
-    margin-top: 25px;
-    margin-bottom: 30px;
-    text-shadow: 1px 1px 3px #000;
-}
-#endGameScreen button {
-    padding: 12px 25px;
-    font-size: 1.1em;
-    background-color: #2ECC40;
-    color: white;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    box-shadow: 0 4px #1e8a2b;
-    transition: all 0.1s ease;
-}
-#endGameScreen button:hover {
-    background-color: #27ae60;
-}
-#endGameScreen button:active {
-    transform: translateY(2px);
-    box-shadow: 0 2px #1e8a2b;
-}
-
-.modal-screen { /* Pantalla de fondo para "Cómo Jugar" */
-    position: fixed; /* Cambiado a fixed para ocupar toda la ventana */
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.8); 
-    display: none; 
-    justify-content: center;
-    align-items: center;
-    z-index: 900; /* Encima del juego pero debajo de endGameScreen */
-    padding: 15px;
-    box-sizing: border-box;
-}
-
-.modal-content { /* Contenido del modal "Cómo Jugar" */
-    background-color: #2c3e50; 
-    color: #ecf0f1; 
-    padding: 20px; /* Reducido padding un poco */
-    border-radius: 10px;
-    width: 90%; 
-    max-width: 500px; /* Ancho máximo para legibilidad */
-    max-height: 85vh; /* Altura máxima para viewport */
-    overflow-y: auto; 
-    box-shadow: 0 5px 15px rgba(0,0,0,0.5);
-    position: relative; 
-    /* Estilos para la barra de scroll (WebKit - Chrome, Safari, Edge) */
-    scrollbar-width: thin; /* Firefox */
-    scrollbar-color: #FFA500 #2c3e50; /* Firefox: pulgar y pista */
-}
-.modal-content::-webkit-scrollbar {
-    width: 8px;
-}
-.modal-content::-webkit-scrollbar-track {
-    background: #2c3e50;
-    border-radius: 10px;
-}
-.modal-content::-webkit-scrollbar-thumb {
-    background-color: #FFA500;
-    border-radius: 10px;
-    border: 2px solid #2c3e50;
-}
-
-
-.modal-content h2 {
-    color: #FFA500; 
-    text-align: center;
-    margin-top: 0;
-    margin-bottom: 15px; 
-}
-.modal-content h3 {
-    color: #3498DB; 
-    margin-top: 12px; 
-    margin-bottom: 8px; 
-    border-bottom: 1px solid #4a6c8c;
-    padding-bottom: 4px; 
-    font-size: 1.1em; 
-}
-
-.modal-content ul {
-    list-style-position: inside; 
-    padding-left: 0px; 
-    margin-bottom: 12px; 
-}
-.modal-content li {
-    margin-bottom: 6px; 
-    line-height: 1.4; 
-     font-size: 0.95em; 
-}
-.modal-content p {
-    line-height: 1.5; 
-    margin-bottom: 8px; 
-    font-size: 0.95em; 
-}
-.modal-content strong {
-    color: #F1C40F; 
-}
-
-.close-button {
-    position: absolute;
-    top: 8px;  
-    right: 12px; 
-    font-size: 24px; 
-    font-weight: bold;
-    color: #ecf0f1;
-    cursor: pointer;
-    padding: 2px 5px; 
-    line-height: 1;
-}
-.close-button:hover {
-    color: #FFA500;
-}
-.instructions-section {
-    margin-bottom: 15px; 
-}
-
-/* El #scoreIngame HTML ya no existe, estos estilos no son necesarios aquí */
-/* ... (Estilos anteriores sin cambios) ... */
-
-.reset-button, .fullscreen-button, .sensor-button {
-    padding: 8px 12px;
-    font-size: 14px;
-    color: white;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    box-shadow: 0 3px #444;
-    transition: transform 0.1s ease, box-shadow 0.1s ease, background-color 0.2s ease;
-    margin-top: 5px; 
-}
-.reset-button:active, .fullscreen-button:active, .sensor-button:active {
-    transform: translateY(2px);
-    box-shadow: 0 1px #222;
-}
-
-.reset-button { background-color: #6A5ACD; box-shadow: 0 3px #483D8B; }
-.fullscreen-button { background-color: #20B2AA; box-shadow: 0 3px #167d75; font-size: 18px; }
-.sensor-button { background-color: #FF8C00; box-shadow: 0 3px #cc7000; }
-.sensor-button--activating {
-    transform: scale(1.1);
-    background-color: #e67e22 !important; 
-}
-
-/* Nuevo: Botón pequeño de control (para Mute) */
-.control-button-small {
-    padding: 6px 10px;
-    font-size: 18px; /* Icono más grande */
-    min-width: 40px; /* Ancho mínimo */
-    height: 35px;    /* Alto */
-    color: white;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    box-shadow: 0 3px #444;
-    transition: transform 0.1s ease, box-shadow 0.1s ease, background-color 0.2s ease;
-    margin-top: 5px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
-.control-button-small:active {
-    transform: translateY(2px);
-    box-shadow: 0 1px #222;
-}
-
-.mute-button {
-    background-color: #5cb85c; /* Verde para sonido activo inicialmente */
-    box-shadow: 0 3px #4cae4c;
-}
-.mute-button.muted {
-    background-color: #d9534f; /* Rojo para sonido muteado */
-    box-shadow: 0 3px #d43f3a;
-}
-
-
-/* ... (Resto de estilos modal, etc., sin cambios) ... */
-#endGameScreen {
-    position: fixed; 
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 30, 60, 0.9); 
-    color: white;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    z-index: 1000; 
-    padding: 20px;
-    box-sizing: border-box;
-    text-align: center;
-    font-family: 'Arial', sans-serif;
-    opacity: 0; 
-    visibility: hidden; 
-    transition: opacity 0.5s ease-in-out, visibility 0.5s ease-in-out;
-}
-#endGameScreen.visible {
-    opacity: 1;
-    visibility: visible;
-}
-
-#endGameScreen h2 {
-    font-size: 2.5em;
-    color: #FFD700; 
-    margin-bottom: 20px;
-    text-shadow: 2px 2px 4px #000;
-}
-#endGameScreen p {
-    font-size: 1.2em;
-    line-height: 1.6;
-    margin: 8px 0;
-}
-#endGameScreen h3 {
-    font-size: 2em;
-    color: #90EE90; 
-    margin-top: 25px;
-    margin-bottom: 30px;
-    text-shadow: 1px 1px 3px #000;
-}
-#endGameScreen button {
-    padding: 12px 25px;
-    font-size: 1.1em;
-    background-color: #2ECC40;
-    color: white;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    box-shadow: 0 4px #1e8a2b;
-    transition: all 0.1s ease;
-}
-#endGameScreen button:hover {
-    background-color: #27ae60;
-}
-#endGameScreen button:active {
-    transform: translateY(2px);
-    box-shadow: 0 2px #1e8a2b;
-}
-
-.modal-screen { /* Pantalla de fondo para "Cómo Jugar" */
-    position: fixed; /* Cambiado a fixed para ocupar toda la ventana */
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.8); 
-    display: none; 
-    justify-content: center;
-    align-items: center;
-    z-index: 900; /* Encima del juego pero debajo de endGameScreen */
-    padding: 15px;
-    box-sizing: border-box;
-}
-
-.modal-content { /* Contenido del modal "Cómo Jugar" */
-    background-color: #2c3e50; 
-    color: #ecf0f1; 
-    padding: 20px; 
-    border-radius: 10px;
-    width: 90%; 
-    max-width: 500px; 
-    max-height: 85vh; 
-    overflow-y: auto; 
-    box-shadow: 0 5px 15px rgba(0,0,0,0.5);
-    position: relative; 
-    scrollbar-width: thin; 
-    scrollbar-color: #FFA500 #2c3e50; 
-}
-.modal-content::-webkit-scrollbar {
-    width: 8px;
-}
-.modal-content::-webkit-scrollbar-track {
-    background: #2c3e50;
-    border-radius: 10px;
-}
-.modal-content::-webkit-scrollbar-thumb {
-    background-color: #FFA500;
-    border-radius: 10px;
-    border: 2px solid #2c3e50;
-}
-
-
-.modal-content h2 {
-    color: #FFA500; 
-    text-align: center;
-    margin-top: 0;
-    margin-bottom: 15px; 
-}
-.modal-content h3 {
-    color: #3498DB; 
-    margin-top: 12px; 
-    margin-bottom: 8px; 
-    border-bottom: 1px solid #4a6c8c;
-    padding-bottom: 4px; 
-    font-size: 1.1em; 
-}
-
-.modal-content ul {
-    list-style-position: inside; 
-    padding-left: 0px; 
-    margin-bottom: 12px; 
-}
-.modal-content li {
-    margin-bottom: 6px; 
-    line-height: 1.4; 
-     font-size: 0.95em; 
-}
-.modal-content p {
-    line-height: 1.5; 
-    margin-bottom: 8px; 
-    font-size: 0.95em; 
-}
-.modal-content strong {
-    color: #F1C40F; 
-}
-
-.close-button {
-    position: absolute;
-    top: 8px;  
-    right: 12px; 
-    font-size: 24px; 
-    font-weight: bold;
-    color: #ecf0f1;
-    cursor: pointer;
-    padding: 2px 5px; 
-    line-height: 1;
-}
-.close-button:hover {
-    color: #FFA500;
-}
-.instructions-section {
-    margin-bottom: 15px; 
-}
+.level-transition-content { text-align: center; padding: 30px; }
+.level-transition-content h2 { font-size: 2.2em; margin-bottom: 15px; }
+.level-transition-content p { font-size: 1.1em; margin-bottom: 20px; }
+.level-transition-content button { padding: 12px 25px; font-size: 1.1em; background-color: #3498db; color: white; border: none; border-radius: 8px; cursor: pointer; box-shadow: 0 4px #2980b9; transition: all 0.1s ease; margin: 5px; }
+.level-transition-content button:hover { background-color: #2c81ba; }
+.level-transition-content button:active { transform: translateY(2px); box-shadow: 0 2px #2980b9; }
+#arcadeEndToMenuButton { background-color: #e67e22; box-shadow: 0 4px #d35400; }
+#arcadeEndToMenuButton:hover { background-color: #c86b16; }
