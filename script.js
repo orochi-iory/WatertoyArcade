@@ -1,114 +1,3 @@
-// (El inicio del script, constantes, variables globales y funciones hasta handleOrientation sin cambios importantes,
-// solo añadiré logs dentro de las funciones relevantes al sensor)
-
-// ... (inicio del script, constantes, etc. ... hasta la definición de requestSensorPermission)
-
-function handleOrientation(event) {
-    // Log para ver si el evento se dispara y qué datos trae
-    // console.log("Device Orientation Event:", event); // Puede ser muy verboso, usar con cuidado
-
-    let gamma = event.gamma; // Inclinación de lado a lado (izquierda/derecha)
-    
-    // Log para ver el valor crudo de gamma
-    // console.log("Raw Gamma:", gamma);
-
-    if (gamma === null || gamma === undefined) {
-        console.warn("Sensor: event.gamma es null o undefined.");
-        return;
-    }
-
-    const MAX_EFFECTIVE_GAMMA_SENSOR = 30; 
-    sensorTiltX = gamma / MAX_EFFECTIVE_GAMMA_SENSOR;
-    sensorTiltX = Math.max(-1, Math.min(1, sensorTiltX)); 
-    
-    // Log para ver el valor normalizado
-    // console.log("Sensor TiltX (normalizado):", sensorTiltX); 
-}
-
-function requestSensorPermission() {
-    console.log(">>>> requestSensorPermission llamada.");
-    if(!enableSensorButton) {
-        console.error("requestSensorPermission: enableSensorButton no existe.");
-        return;
-    }
-
-    enableSensorButton.classList.add('sensor-button--activating');
-    setTimeout(() => {
-        if(enableSensorButton) enableSensorButton.classList.remove('sensor-button--activating');
-    }, 300);
-
-    if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-        console.log("Sensor: Usando DeviceOrientationEvent.requestPermission()");
-        DeviceOrientationEvent.requestPermission()
-            .then(permissionState => {
-                console.log("Sensor: Estado del permiso:", permissionState);
-                if (permissionState === 'granted') {
-                    window.addEventListener('deviceorientation', handleOrientation, true); 
-                    sensorActive = true;
-                    console.log("Sensor: Permiso concedido y listener añadido. sensorActive =", sensorActive);
-                    if(enableSensorButton) enableSensorButton.style.display = 'none';
-                    if(tiltLeftButton) tiltLeftButton.style.display = 'none'; 
-                    if(tiltRightButton) tiltRightButton.style.display = 'none';
-                    setPersistentInstructions(); 
-                } else {
-                    if (messageBoard) showMessage("Permiso del sensor denegado.", 3000, true);
-                    if(enableSensorButton) {enableSensorButton.textContent = "Sensor Denegado"; enableSensorButton.disabled = true;}
-                    console.warn("Sensor: Permiso denegado.");
-                }
-            })
-            .catch(error => {
-                console.error("Sensor: Error al solicitar permiso:", error);
-                if (messageBoard) showMessage("Error al activar sensor.", 3000, true);
-            });
-    } else if (window.DeviceOrientationEvent){ 
-        console.log("Sensor: Navegador soporta DeviceOrientationEvent directamente (no iOS 13+). Añadiendo listener.");
-        window.addEventListener('deviceorientation', handleOrientation, true);
-        sensorActive = true;
-        console.log("Sensor: Listener añadido directamente. sensorActive =", sensorActive);
-        if(enableSensorButton) enableSensorButton.style.display = 'none';
-        if(tiltLeftButton) tiltLeftButton.style.display = 'none'; 
-        if(tiltRightButton) tiltRightButton.style.display = 'none';
-        setPersistentInstructions();
-    } else {
-        console.warn("Sensor: DeviceOrientationEvent no soportado en este navegador.");
-        if (messageBoard) showMessage("Sensor no soportado.", 3000, true);
-        if(enableSensorButton) enableSensorButton.style.display = 'none';
-    }
-}
-
-// --- Listener para el botón del sensor ---
-// (Esta lógica ya estaba, pero la incluyo aquí para contexto)
-if (enableSensorButton && window.DeviceOrientationEvent) {
-    enableSensorButton.style.display = 'inline-block'; 
-    enableSensorButton.disabled = false; 
-    enableSensorButton.textContent = "SENSOR"; 
-    enableSensorButton.addEventListener('click', requestSensorPermission); 
-    console.log(">>>> Event listener para enableSensorButton añadido.");
-} else if(enableSensorButton) { 
-    enableSensorButton.style.display = 'none'; 
-    console.log(">>>> enableSensorButton oculto (sensor no soportado o botón no encontrado).");
-}
-
-
-// --- En gameLoop ---
-// ...
-// let forceForTiltUpdate = 0; 
-// if (sensorActive && sensorAvailable) { // sensorAvailable ya se chequea al añadir el botón
-//    forceForTiltUpdate = sensorTiltX * TILT_FORCE_SENSOR_MULTIPLIER;  
-//    if (forceForTiltUpdate > MAX_SENSOR_TILT_FORCE) forceForTiltUpdate = MAX_SENSOR_TILT_FORCE;
-//    if (forceForTiltUpdate < -MAX_SENSOR_TILT_FORCE) forceForTiltUpdate = -MAX_SENSOR_TILT_FORCE;
-//    console.log("Sensor data used in gameLoop: sensorTiltX=", sensorTiltX, "forceForTiltUpdate=", forceForTiltUpdate); // Log para ver si se usa
-// } else { 
-//     if (tiltLeftActive === true && tiltRightActive === false) { forceForTiltUpdate = -TILT_FORCE_BUTTON_BASE; } 
-//     else if (tiltRightActive === true && tiltLeftActive === false) { forceForTiltUpdate = TILT_FORCE_BUTTON_BASE;}
-// }
-// if(rings) updateRings(forceForTiltUpdate, deltaTime); 
-// ...
-
-
-// --- COPIA COMPLETA DEL SCRIPT.JS CON LOGS DE SENSOR Y RESTO DEL CÓDIGO ---
-// (Este es el script completo que me pasaste la última vez, con mis logs añadidos arriba y ajustes en gameLoop)
-
 // Asegurarse de que este script se ejecute después de que el HTML se parsea (usar 'defer' en HTML)
 console.log(">>>> Watertoy Arcade - script.js execution started.");
 
@@ -155,7 +44,7 @@ if (!canvas) {
     function drawAllPegsAndLandedRings() { if(!pegs) return; pegs.forEach(peg => { ctx.fillStyle = PEG_FILL_COLOR; ctx.strokeStyle = PEG_STROKE_COLOR; ctx.lineWidth = 2; const pegTopY = peg.bottomY - peg.height; ctx.beginPath(); ctx.roundRect(peg.x - PEG_VISUAL_WIDTH / 2, pegTopY, PEG_VISUAL_WIDTH, peg.height, [PEG_VISUAL_WIDTH/3, PEG_VISUAL_WIDTH/3, 0, 0]); ctx.fill(); ctx.stroke(); peg.landedRings.forEach(drawRing); }); }
     function drawScoreOnCanvas() { if (startScreen && startScreen.style.display === 'flex' && !gameRunning) return; ctx.save(); ctx.font = `bold ${currentScoreDisplaySize}px Arial`; ctx.textAlign = 'right'; ctx.textBaseline = 'top'; ctx.shadowColor = 'rgba(0, 0, 0, 0.7)'; ctx.shadowBlur = 3; ctx.shadowOffsetX = 1; ctx.shadowOffsetY = 1; if (scorePulseActive) { ctx.fillStyle = '#FFD700'; } else { ctx.fillStyle = 'rgba(255, 255, 255, 0.9)'; } ctx.fillText(`Score: ${score}`, gameScreenWidth - 10, 10); ctx.restore(); }
     instructionTimeout = null; function showMessage(text, duration = 3000, isInstruction = false) { if (instructionTimeout && !isInstruction) { clearTimeout(instructionTimeout); } if(messageBoard) {messageBoard.textContent = text; messageBoard.style.opacity = 1;} if (!isInstruction) { instructionTimeout = setTimeout(() => { if(messageBoard) messageBoard.style.opacity = 0; instructionTimeout = null; setTimeout(setPersistentInstructions, 700); }, duration); } }
-    function setPersistentInstructions() { if (!messageBoard || messageBoard.style.display === 'none') return; if (instructionTimeout && messageBoard && messageBoard.textContent !== "" && !messageBoard.textContent.toLowerCase().includes("pc:")) { return; } let instructionMessage = "PC: Flechas=Inclinar, A/D=Jets."; if (sensorAvailable) { if (sensorActive) instructionMessage = "Móvil: Sensor ACTIVO."; else instructionMessage = "PC: Flechas=Inclinar, A/D=Jets. Móvil: Botones/Activar Sensor.";} else {instructionMessage = "PC: Flechas=Inclinar, A/D=Jets. Móvil: Botones TILT.";} if(messageBoard) { messageBoard.textContent = instructionMessage; messageBoard.style.opacity = 1;} }
+    function setPersistentInstructions() { console.log(">>>> setPersistentInstructions llamada. sensorActive:", sensorActive, "sensorAvailable:", sensorAvailable); if (instructionTimeout && messageBoard && messageBoard.textContent !== "" && !messageBoard.textContent.toLowerCase().includes("pc:")) { return; } let instructionMessage = "PC: Flechas=Inclinar, A/D=Jets."; if (sensorAvailable) { if (sensorActive) { instructionMessage = "Móvil: Sensor ACTIVO. ¡Inclina tu dispositivo!"; } else { instructionMessage = "PC: Flechas=Inclinar, A/D=Jets. Móvil: Botones/Activar SENSOR."; } } else { instructionMessage = "PC: Flechas=Inclinar, A/D=Jets. Móvil: Botones TILT (Sensor no disp.)"; } if(messageBoard) { messageBoard.textContent = instructionMessage; messageBoard.style.opacity = 1; messageBoard.style.display = 'block'; console.log(">>>> messageBoard actualizado:", instructionMessage); } else { console.warn("setPersistentInstructions: messageBoard es null"); } }
     function updateScore(pointsToAdd, message = "") { if (pointsToAdd > 0) { score += pointsToAdd; scorePulseActive = true; scorePulseTimer = SCORE_PULSE_DURATION; currentScoreDisplaySize = SCORE_PULSE_SIZE; } else if (pointsToAdd < 0) { score += pointsToAdd; } if (message && message !== "") { showMessage(message, 2500); } }
     function checkAndApplyBonuses(landedRing, peg) { let pointsForThisSpecificRing = landedRing.basePoints; let bonusMessageText = ""; baseScoreFromRings += landedRing.basePoints; if ('vibrate' in navigator) { navigator.vibrate(75); } let mightBecomeMonoColor = true; if(peg.landedRings.length === MAX_RINGS_PER_PEG) { const firstColorInPeg = peg.landedRings[0].color; for(const r of peg.landedRings) { if (r.color !== firstColorInPeg) { mightBecomeMonoColor = false; break; } } } else { mightBecomeMonoColor = false; } if (peg.landedRings.length > 1 && !mightBecomeMonoColor && landedRing.landedOrder > 0 ) { const previousRingInStack = peg.landedRings[landedRing.landedOrder -1]; if (previousRingInStack && previousRingInStack.color === landedRing.color) { let colorStreakBonus = landedRing.basePoints; pointsForThisSpecificRing += colorStreakBonus; bonusScoreFromColorStreak += colorStreakBonus; bonusMessageText += ` Color x2!`;} } landedRing.awardedPoints = pointsForThisSpecificRing; createFloatingScore(landedRing.x, landedRing.finalYonPeg - RING_OUTER_RADIUS, `+${pointsForThisSpecificRing}${bonusMessageText}`, landedRing.color); updateScore(pointsForThisSpecificRing); landedRingsCount++; if (peg.landedRings.length === MAX_RINGS_PER_PEG && !peg.isFullAndScored) { peg.isFullAndScored = true; let isCurrentPegMonoColor = true; const firstLandedColor = peg.landedRings[0].color; for (let k = 1; k < MAX_RINGS_PER_PEG; k++) { if (peg.landedRings[k].color !== firstLandedColor) { isCurrentPegMonoColor = false; break; } } let additionalBonusScore = 0; let pegCompletionMessage = ""; if (isCurrentPegMonoColor) { peg.isMonoColor = true; peg.monoColorValue = firstLandedColor; let currentPegAwardedPointsSum = 0; peg.landedRings.forEach(r => currentPegAwardedPointsSum += r.awardedPoints); let targetMonoScore = (landedRing.basePoints * MAX_RINGS_PER_PEG) * 10; additionalBonusScore = targetMonoScore - currentPegAwardedPointsSum; if(additionalBonusScore < 0) additionalBonusScore = 0; bonusScoreFromMonoColorPegsSpecific += additionalBonusScore; pegCompletionMessage = `PALO MONOCOLOR! (x10)`; } else { let pegTotalAwardedPoints = 0; peg.landedRings.forEach(r => { pegTotalAwardedPoints += r.awardedPoints; }); additionalBonusScore = pegTotalAwardedPoints * 3; bonusScoreFromFullPegsGeneral += additionalBonusScore; pegCompletionMessage = `PALO LLENO! (x4)`; } if(additionalBonusScore > 0) updateScore(additionalBonusScore, pegCompletionMessage); checkAllPegsCompleted(); } }
     function checkAllPegsCompleted() { if (allPegsCompletedBonusFactor > 1 && masterBonusFactor > 1) return; if(!pegs) return; const allPegsNowFull = pegs.every(p => p.isFullAndScored); if (allPegsNowFull && allPegsCompletedBonusFactor === 1) { allPegsCompletedBonusFactor = 2; showMessage("TODOS LOS PALOS LLENOS! Puntos x2!", 3500, true); let monoColorPegCount = 0; const usedColorsForMaster = new Set(); pegs.forEach(p => { if (p.isMonoColor) { monoColorPegCount++; usedColorsForMaster.add(p.monoColorValue); } }); if (monoColorPegCount === TOTAL_COLORS && usedColorsForMaster.size === TOTAL_COLORS) { masterBonusFactor = 100; showMessage("¡¡BONO MAESTRO!! Puntuación Final x100!", 5000, true); } triggerGameOver(); } }
@@ -171,24 +60,37 @@ if (!canvas) {
     for (let iter = 0; iter < 3; iter++) { for (let i = 0; i < rings.length; i++) { const ring1 = rings[i]; if (ring1.landed) continue; for (let j = i + 1; j < rings.length; j++) { const ring2 = rings[j]; if (ring2.landed) continue; const dx = ring2.x - ring1.x; const dy = ring2.y - ring1.y; const distance = Math.sqrt(dx * dx + dy * dy); const minDistance = RING_OUTER_RADIUS * 2; if (distance < minDistance && distance > 0.001) { const overlap = (minDistance - distance); const normalX = dx / distance; const normalY = dy / distance; ring1.x -= overlap * 0.5 * normalX; ring1.y -= overlap * 0.5 * normalY; ring2.x += overlap * 0.5 * normalX; ring2.y += overlap * 0.5 * normalY; const relativeVx = ring1.vx - ring2.vx; const relativeVy = ring1.vy - ring2.vy; const dotProduct = relativeVx * normalX + relativeVy * normalY; if (dotProduct > 0) { const impulse = (-(1 + RING_COLLISION_BOUNCE) * dotProduct) / 2; ring1.vx += impulse * normalX; ring1.vy += impulse * normalY; ring2.vx -= impulse * normalX; ring2.vy -= impulse * normalY; if (!ring1.isFlat && Math.abs(ring1.rotationSpeed) < 0.2) ring1.rotationSpeed += (Math.random() - 0.5) * 0.05 / (accelerationFactor || 1); if (!ring2.isFlat && Math.abs(ring2.rotationSpeed) < 0.2) ring2.rotationSpeed += (Math.random() - 0.5) * 0.05 / (accelerationFactor || 1); if (Math.abs(ring1.zRotationSpeed) < 0.05) ring1.zRotationSpeed += (Math.random() - 0.5) * 0.03 / (accelerationFactor || 1); if (Math.abs(ring2.zRotationSpeed) < 0.05) ring2.zRotationSpeed += (Math.random() - 0.5) * 0.03 / (accelerationFactor || 1); } } } } }
     rings.forEach((ring, index) => { if (ring.landed && !ring.isSlidingOnPeg) return; if (ring.isSlidingOnPeg) return; let prevX = ring.x; let prevY = ring.y; ring.x += ring.vx * accelerationFactor; ring.y += ring.vy * accelerationFactor; let interactionOccurredThisFrame = false; if (!ring.landed) { for (const peg of pegs) { if (ring.landed || interactionOccurredThisFrame || peg.landedRings.length >= MAX_RINGS_PER_PEG || peg.isFullAndScored ) { continue; } const pegCenterX = peg.x; const pegTop = peg.bottomY - peg.height; const ringRadius = RING_OUTER_RADIUS; const landingCatchWidth = PEG_VISUAL_WIDTH * 2.0; const horizontallyAligned = Math.abs(ring.x - pegCenterX) < landingCatchWidth / 2; const isFalling = ring.vy > 0; const ringBottom = ring.y + ringRadius; const prevRingBottom = prevY + ringRadius; if (isFalling && horizontallyAligned && ringBottom >= pegTop && prevRingBottom < pegTop + RING_VISUAL_THICKNESS * 0.8 ) { const targetLandedY = (peg.bottomY - FLAT_RING_VIEW_THICKNESS / 2) - (peg.landedRings.length * FLAT_RING_VIEW_THICKNESS); ring.isSlidingOnPeg = true; ring.finalYonPeg = targetLandedY; ring.landed = true; ring.isFlat = true; ring.pegIndex = peg.id; ring.x = pegCenterX; if (ring.y < targetLandedY) { ring.vy = Math.min(4.0, 2.0 + peg.landedRings.length * 0.1); } else { ring.vy = -Math.min(4.0, 2.0 + peg.landedRings.length * 0.1); if(targetLandedY > ring.y - 1) ring.vy = 0.1; } ring.vx = 0; ring.rotationSpeed = 0; ring.rotationAngle = Math.PI / 2; ring.zRotationAngle = 0; ring.zRotationSpeed = 0; ring.landedOrder = peg.landedRings.length; peg.landedRings.push(ring); checkAndApplyBonuses(ring, peg); interactionOccurredThisFrame = true; break; } if (!ring.landed && !interactionOccurredThisFrame) { const pegBodyLeft = pegCenterX - (PEG_VISUAL_WIDTH * 1.0) / 2; const pegBodyRight = pegCenterX + (PEG_VISUAL_WIDTH * 1.0) / 2; if (ring.y + ringRadius > pegTop + RING_VISUAL_THICKNESS * 0.5 && ring.y - ringRadius < peg.bottomY) { if (ring.x + ringRadius > pegBodyLeft && prevX + ringRadius <= pegBodyLeft + 1 && ring.vx > 0) { ring.x = pegBodyLeft - ringRadius - 0.1; ring.vx *= PEG_COLLISION_BOUNCE_FACTOR; interactionOccurredThisFrame = true; } else if (ring.x - ringRadius < pegBodyRight && prevX - ringRadius >= pegBodyRight -1 && ring.vx < 0) { ring.x = pegBodyRight + ringRadius + 0.1; ring.vx *= PEG_COLLISION_BOUNCE_FACTOR; interactionOccurredThisFrame = true; } } if (!interactionOccurredThisFrame && isFalling && ring.y + ringRadius > pegTop && prevY + ringRadius <= pegTop + 3 && Math.abs(ring.x - pegCenterX) < (PEG_VISUAL_WIDTH / 2 + ringRadius)) { ring.y = pegTop - ringRadius - 0.1; ring.vy *= (PEG_COLLISION_BOUNCE_FACTOR - 0.1); ring.vx += (Math.random() - 0.5) * 0.3 * accelerationFactor; interactionOccurredThisFrame = true;} } if (interactionOccurredThisFrame) break; } } if (ring.x - RING_OUTER_RADIUS < 0) { ring.x = RING_OUTER_RADIUS; ring.vx *= BOUNCE_FACTOR; } if (ring.x + RING_OUTER_RADIUS > gameScreenWidth) { ring.x = gameScreenWidth - RING_OUTER_RADIUS; ring.vx *= BOUNCE_FACTOR; } if (ring.y - RING_OUTER_RADIUS < 0) { ring.y = RING_OUTER_RADIUS; ring.vy *= BOUNCE_FACTOR;} const effectiveRingBottomExtent = ring.y + (ring.isFlat ? GROUND_FLAT_RING_THICKNESS / 2 : RING_OUTER_RADIUS); const groundHitPosition = gameScreenHeight - RING_OUTLINE_WIDTH_ON_SCREEN; if (effectiveRingBottomExtent >= groundHitPosition) { ring.y = groundHitPosition - (ring.isFlat ? GROUND_FLAT_RING_THICKNESS / 2 : RING_OUTER_RADIUS); if (ring.vy > 0) ring.vy *= BOUNCE_FACTOR * 0.3; if (Math.abs(ring.vy) < 0.05 / (accelerationFactor > 0 ? accelerationFactor : 1) ) { ring.vy = 0; if (!ring.landed) { ring.isFlat = true; if (ring.rotationSpeed !==0) ring.rotationSpeed = 0; ring.rotationAngle = Math.PI / 2; if (ring.zRotationSpeed !== 0) ring.zRotationSpeed = 0;} } }
     }); };
-    function handleOrientation(event) { let gamma = event.gamma; if (gamma === null || gamma === undefined) return; const MAX_EFFECTIVE_GAMMA_SENSOR = 30; sensorTiltX = gamma / MAX_EFFECTIVE_GAMMA_SENSOR; sensorTiltX = Math.max(-1, Math.min(1, sensorTiltX)); }
-    function requestSensorPermission() { if(!enableSensorButton) { console.warn("Sensor button not found, cannot request permission."); return;} enableSensorButton.classList.add('sensor-button--activating'); setTimeout(() => { if(enableSensorButton) enableSensorButton.classList.remove('sensor-button--activating'); }, 300); if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') { console.log("Sensor: Using DeviceOrientationEvent.requestPermission()"); DeviceOrientationEvent.requestPermission().then(permissionState => { console.log("Sensor: Permission state:", permissionState); if (permissionState === 'granted') { window.addEventListener('deviceorientation', handleOrientation, true); sensorActive = true; console.log("Sensor: Permission granted. sensorActive =", sensorActive); if(enableSensorButton) enableSensorButton.style.display = 'none'; if(tiltLeftButton) tiltLeftButton.style.display = 'none'; if(tiltRightButton) tiltRightButton.style.display = 'none'; setPersistentInstructions(); } else { if (messageBoard) showMessage("Permiso del sensor denegado.", 3000, true); if(enableSensorButton) {enableSensorButton.textContent = "Sensor Denegado"; enableSensorButton.disabled = true;} console.warn("Sensor: Permission denied."); } }).catch(error => { console.error("Sensor: Error requesting permission:", error); if (messageBoard) showMessage("Error al activar sensor.", 3000, true); }); } else if (window.DeviceOrientationEvent){ console.log("Sensor: Using direct DeviceOrientationEvent listener."); window.addEventListener('deviceorientation', handleOrientation, true); sensorActive = true; console.log("Sensor: Direct listener added. sensorActive =", sensorActive); if(enableSensorButton) enableSensorButton.style.display = 'none'; if(tiltLeftButton) tiltLeftButton.style.display = 'none'; if(tiltRightButton) tiltRightButton.style.display = 'none'; setPersistentInstructions(); } else { console.warn("Sensor: DeviceOrientationEvent not supported."); if (messageBoard) showMessage("Sensor no soportado.", 3000, true); if(enableSensorButton) enableSensorButton.style.display = 'none'; } }
+    function handleOrientation(event) { let gamma = event.gamma; if (gamma === null || gamma === undefined) {return;} const MAX_EFFECTIVE_GAMMA_SENSOR = 30; sensorTiltX = gamma / MAX_EFFECTIVE_GAMMA_SENSOR; sensorTiltX = Math.max(-1, Math.min(1, sensorTiltX));}
+    function requestSensorPermission() { console.log(">>>> requestSensorPermission llamada."); if(!enableSensorButton) { console.error("requestSensorPermission: enableSensorButton no existe."); return; } enableSensorButton.classList.add('sensor-button--activating'); setTimeout(() => { if(enableSensorButton) enableSensorButton.classList.remove('sensor-button--activating'); }, 300); if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') { console.log("Sensor: Usando DeviceOrientationEvent.requestPermission()"); DeviceOrientationEvent.requestPermission().then(permissionState => { console.log("Sensor: Estado del permiso:", permissionState); if (permissionState === 'granted') { window.addEventListener('deviceorientation', handleOrientation, true); sensorActive = true; console.log("Sensor: Permiso concedido. sensorActive AHORA ES TRUE"); if(enableSensorButton) enableSensorButton.style.display = 'none'; if(tiltLeftButton) tiltLeftButton.style.display = 'none'; if(tiltRightButton) tiltRightButton.style.display = 'none'; setPersistentInstructions(); } else { sensorActive = false; if (messageBoard) showMessage("Permiso del sensor denegado.", 3000, true); if(enableSensorButton) {enableSensorButton.textContent = "Sensor Denegado"; enableSensorButton.disabled = true;} console.warn("Sensor: Permiso denegado. sensorActive AHORA ES FALSE"); setPersistentInstructions(); } }).catch(error => { sensorActive = false; console.error("Sensor: Error al solicitar permiso:", error); if (messageBoard) showMessage("Error al activar sensor.", 3000, true); setPersistentInstructions(); }); } else if (window.DeviceOrientationEvent){ console.log("Sensor: Navegador soporta DeviceOrientationEvent directamente."); window.addEventListener('deviceorientation', handleOrientation, true); sensorActive = true; console.log("Sensor: Listener añadido directamente. sensorActive AHORA ES TRUE"); if(enableSensorButton) enableSensorButton.style.display = 'none'; if(tiltLeftButton) tiltLeftButton.style.display = 'none'; if(tiltRightButton) tiltRightButton.style.display = 'none'; setPersistentInstructions(); } else { sensorAvailable = false; sensorActive = false; console.warn("Sensor: DeviceOrientationEvent no soportado."); if (messageBoard) showMessage("Sensor no soportado.", 3000, true); if(enableSensorButton) enableSensorButton.style.display = 'none'; setPersistentInstructions(); } }
 
-    // --- EVENT LISTENERS (con verificaciones) ---
-    if (startGameButton) startGameButton.addEventListener('click', () => { if(startScreen) startScreen.style.display = 'none'; if (howToPlayScreen && howToPlayScreen.style.display !== 'none') howToPlayScreen.style.display = 'none'; initGame(); gameRunning = true; gameOver = false; if (gameLoopId) { cancelAnimationFrame(gameLoopId); gameLoopId = null; } if (typeof performance !== 'undefined' && performance.now) { lastTime = performance.now(); } else { lastTime = Date.now(); } gameLoopId = requestAnimationFrame(gameLoop); });
+    // --- MANEJO DE EVENTOS ---
+    if (startGameButton) { startGameButton.addEventListener('click', () => { if(startScreen) startScreen.style.display = 'none'; if (howToPlayScreen && howToPlayScreen.style.display !== 'none') {howToPlayScreen.style.display = 'none';} initGame(); gameRunning = true; gameOver = false; if (gameLoopId) { cancelAnimationFrame(gameLoopId); gameLoopId = null; } if (typeof performance !== 'undefined' && performance.now) { lastTime = performance.now(); } else { lastTime = Date.now(); } gameLoopId = requestAnimationFrame(gameLoop); }); }
     if (resetButton) { resetButton.addEventListener('click', () => { if (gameLoopId) { cancelAnimationFrame(gameLoopId); gameLoopId = null; } gameRunning = false; gameOver = false; hideEndGameScreen(); if(startScreen) startScreen.style.display = 'flex'; if(howToPlayButton) howToPlayButton.style.display = 'inline-block'; score = 0; currentScoreDisplaySize = SCORE_NORMAL_SIZE; if(ctx) ctx.clearRect(0, 0, canvas.width, canvas.height); drawScoreOnCanvas(); if (!gameLoopId) { if (typeof performance !== 'undefined' && performance.now) { lastTime = performance.now(); } else { lastTime = Date.now(); } gameLoopId = requestAnimationFrame(gameLoop); }}); }
-    if (howToPlayButton) { howToPlayButton.addEventListener('click', () => { if(howToPlayScreen) howToPlayScreen.style.display = 'flex';}); }
-    if (closeHowToPlayButton) { closeHowToPlayButton.addEventListener('click', () => { if(howToPlayScreen) howToPlayScreen.style.display = 'none';}); }
-    // ... (Listeners para leftJetButton, rightJetButton, tiltLeftButton, tiltRightButton, fullscreenButton, window events como antes)
+    if (leftJetButton) { /* ... */ } if (rightJetButton) { /* ... */ } if (tiltLeftButton) { /* ... */ } if (tiltRightButton) { /* ... */ } if (fullscreenButton) { /* ... */ } if (howToPlayButton) { /* ... */ } if (closeHowToPlayButton) { /* ... */ }
     if (leftJetButton) { leftJetButton.addEventListener('mousedown', () => { leftJetInputActive = true; }); leftJetButton.addEventListener('mouseup', () => { leftJetInputActive = false; }); leftJetButton.addEventListener('mouseleave', () => { if(leftJetInputActive) {leftJetInputActive = false;} }); leftJetButton.addEventListener('touchstart', (e) => { e.preventDefault(); leftJetInputActive = true; }, { passive: false }); leftJetButton.addEventListener('touchend', (e) => { e.preventDefault(); leftJetInputActive = false; }); }
     if (rightJetButton) { rightJetButton.addEventListener('mousedown', () => { rightJetInputActive = true; }); rightJetButton.addEventListener('mouseup', () => { rightJetInputActive = false; }); rightJetButton.addEventListener('mouseleave', () => { if(rightJetInputActive) {rightJetInputActive = false;} }); rightJetButton.addEventListener('touchstart', (e) => { e.preventDefault(); rightJetInputActive = true; }, { passive: false }); rightJetButton.addEventListener('touchend', (e) => { e.preventDefault(); rightJetInputActive = false; }); }
     if (tiltLeftButton) { tiltLeftButton.addEventListener('mousedown', () => { tiltLeftActive = true; }); tiltLeftButton.addEventListener('mouseup', () => { tiltLeftActive = false; }); tiltLeftButton.addEventListener('mouseleave', () => { if (tiltLeftActive) { tiltLeftActive = false; } }); tiltLeftButton.addEventListener('touchstart', (e) => { e.preventDefault(); tiltLeftActive = true; }, { passive: false }); tiltLeftButton.addEventListener('touchend', (e) => { e.preventDefault(); tiltLeftActive = false; }); }
     if (tiltRightButton) { tiltRightButton.addEventListener('mousedown', () => { tiltRightActive = true; }); tiltRightButton.addEventListener('mouseup', () => { tiltRightActive = false; }); tiltRightButton.addEventListener('mouseleave', () => { if (tiltRightActive) { tiltRightActive = false; } }); tiltRightButton.addEventListener('touchstart', (e) => { e.preventDefault(); tiltRightActive = true;}, { passive: false }); tiltRightButton.addEventListener('touchend', (e) => { e.preventDefault(); tiltRightActive = false; });}
     if (fullscreenButton) { fullscreenButton.addEventListener('click', () => { const elem = document.querySelector('.game-container'); if (elem && !document.fullscreenElement) { if (elem.requestFullscreen) { elem.requestFullscreen(); } else if (elem.webkitRequestFullscreen) { elem.webkitRequestFullscreen(); } } else { if (document.exitFullscreen) { document.exitFullscreen(); } }}); }
+    if (howToPlayButton) { howToPlayButton.addEventListener('click', () => { if(howToPlayScreen) howToPlayScreen.style.display = 'flex';}); }
+    if (closeHowToPlayButton) { closeHowToPlayButton.addEventListener('click', () => { if(howToPlayScreen) howToPlayScreen.style.display = 'none';}); }
     window.addEventListener('click', (event) => { if (howToPlayScreen && event.target == howToPlayScreen) { howToPlayScreen.style.display = 'none'; }});
     window.addEventListener('keydown', (e) => { let keyProcessed = false; switch (e.code) { case KEY_LEFT_ARROW: tiltLeftActive = true; keyProcessed = true; break; case KEY_RIGHT_ARROW: tiltRightActive = true; keyProcessed = true; break; case KEY_JET_LEFT: leftJetInputActive = true; keyProcessed = true; break; case KEY_JET_RIGHT: rightJetInputActive = true; keyProcessed = true; break; } if (keyProcessed && (gameRunning || (startScreen && startScreen.style.display === 'none'))) e.preventDefault(); });
     window.addEventListener('keyup', (e) => { let keyProcessed = false; switch (e.code) { case KEY_LEFT_ARROW: tiltLeftActive = false; keyProcessed = true; break; case KEY_RIGHT_ARROW: tiltRightActive = false; keyProcessed = true; break; case KEY_JET_LEFT: leftJetInputActive = false; keyProcessed = true; break; case KEY_JET_RIGHT: rightJetInputActive = false; keyProcessed = true; break; } if (keyProcessed && (gameRunning || (startScreen && startScreen.style.display === 'none'))) e.preventDefault(); });
-    if (enableSensorButton && window.DeviceOrientationEvent) { enableSensorButton.style.display = 'inline-block'; enableSensorButton.disabled = false; enableSensorButton.textContent = "SENSOR"; enableSensorButton.addEventListener('click', requestSensorPermission); } else if(enableSensorButton) { enableSensorButton.style.display = 'none'; }
+    
+    if (enableSensorButton && window.DeviceOrientationEvent) {
+        sensorAvailable = true; // Marcar como disponible
+        enableSensorButton.style.display = 'inline-block'; 
+        enableSensorButton.disabled = false; 
+        enableSensorButton.textContent = "SENSOR"; 
+        enableSensorButton.addEventListener('click', requestSensorPermission); 
+        console.log(">>>> Sensor es disponible. Botón 'SENSOR' configurado.");
+    } else if(enableSensorButton) { 
+        sensorAvailable = false; // Marcar como no disponible
+        enableSensorButton.style.display = 'none'; 
+        console.log(">>>> Sensor NO disponible o botón no encontrado. Botón 'SENSOR' oculto.");
+    }
+    setPersistentInstructions(); // Llamar después de determinar sensorAvailable
 
 
     // --- GAME LOOP ---
@@ -208,7 +110,17 @@ if (!canvas) {
         const accelerationFactor = deltaTime * TARGET_FPS; const pressureChange = JET_PRESSURE_INCREMENT_BASE * accelerationFactor; const pressureDecay = JET_PRESSURE_DECREMENT_BASE * accelerationFactor;
         if (leftJetInputActive) { leftJetPressure += pressureChange; if (leftJetPressure > MAX_JET_PRESSURE) leftJetPressure = MAX_JET_PRESSURE; if(leftJetPressure > 0.1) createJetParticle(-1, leftJetPressure); } else { leftJetPressure -= pressureDecay; if (leftJetPressure < 0) leftJetPressure = 0; }
         if (rightJetInputActive) { rightJetPressure += pressureChange; if (rightJetPressure > MAX_JET_PRESSURE) rightJetPressure = MAX_JET_PRESSURE; if(rightJetPressure > 0.1) createJetParticle(1, rightJetPressure); } else { rightJetPressure -= pressureDecay; if (rightJetPressure < 0) rightJetPressure = 0; }
-        let forceForTiltUpdate = 0; if (sensorActive && sensorAvailable) { forceForTiltUpdate = sensorTiltX * TILT_FORCE_SENSOR_MULTIPLIER; if (forceForTiltUpdate > MAX_SENSOR_TILT_FORCE) forceForTiltUpdate = MAX_SENSOR_TILT_FORCE; if (forceForTiltUpdate < -MAX_SENSOR_TILT_FORCE) forceForTiltUpdate = -MAX_SENSOR_TILT_FORCE; /* console.log("Sensor Force:", forceForTiltUpdate); */} else { if (tiltLeftActive === true && tiltRightActive === false) { forceForTiltUpdate = -TILT_FORCE_BUTTON_BASE; } else if (tiltRightActive === true && tiltLeftActive === false) { forceForTiltUpdate = TILT_FORCE_BUTTON_BASE; } }
+        let forceForTiltUpdate = 0; 
+        if (sensorActive && sensorAvailable) { 
+            forceForTiltUpdate = sensorTiltX * TILT_FORCE_SENSOR_MULTIPLIER;  
+            if (forceForTiltUpdate > MAX_SENSOR_TILT_FORCE) forceForTiltUpdate = MAX_SENSOR_TILT_FORCE;
+            if (forceForTiltUpdate < -MAX_SENSOR_TILT_FORCE) forceForTiltUpdate = -MAX_SENSOR_TILT_FORCE;
+            // Descomentar para debug intenso del sensor en gameLoop:
+            // if (Math.abs(forceForTiltUpdate) > 0.001) console.log("Sensor Force in Loop:", forceForTiltUpdate.toFixed(3), "sensorTiltX:", sensorTiltX.toFixed(3));
+        } else { 
+            if (tiltLeftActive === true && tiltRightActive === false) { forceForTiltUpdate = -TILT_FORCE_BUTTON_BASE; } 
+            else if (tiltRightActive === true && tiltLeftActive === false) { forceForTiltUpdate = TILT_FORCE_BUTTON_BASE; }
+        }
         if(rings) updateRings(forceForTiltUpdate, deltaTime); 
         drawAllPegsAndLandedRings();
         if(rings) rings.forEach(ring => { drawRing(ring); });
@@ -220,16 +132,13 @@ if (!canvas) {
     }
     
     // --- Configuración Inicial ---
-    if (messageBoard) { messageBoard.style.display = 'none'; setPersistentInstructions(); } // Ocultarlo por defecto pero configurar el texto
-    if (startScreen) { startScreen.style.display = 'flex'; console.log(">>>> Pantalla de inicio (startScreen) activada."); } 
-    else { console.error("!!!!!!!! FATAL: startScreen NO ENCONTRADO. No se puede mostrar la pantalla de inicio. !!!!!!!!!"); }
-    if (typeof performance !== 'undefined' && performance.now) { lastTime = performance.now(); } 
-    else { lastTime = Date.now(); }
-    console.log(">>>> Iniciando el primer gameloop para UI.");
+    if (messageBoard) { messageBoard.style.display = 'block'; /* Re-activado para debug del sensor */ setPersistentInstructions(); } 
+    if (startScreen) { startScreen.style.display = 'flex'; } 
+    if (typeof performance !== 'undefined' && performance.now) { lastTime = performance.now(); } else { lastTime = Date.now(); }
     gameLoopId = requestAnimationFrame(gameLoop); 
 }
 
-// --- LLAMADA A LA FUNCIÓN PRINCIPAL (Solo si canvas existe) ---
+// --- LLAMADA A LA FUNCIÓN PRINCIPAL ---
 if (canvas && typeof canvas.getContext === 'function') {
     initializeAndRunGame();
 } else {
