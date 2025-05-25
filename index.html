@@ -1,15 +1,15 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Waterworld Arcade</title>
+    <title>WaterToy Arcade</title> {/* Título Cambiado */}
     <link rel="stylesheet" href="style.css">
     <meta name="mobile-web-app-capable" content="yes">
 </head>
 <body>
     <div class="game-container">
-        <div class="game-title-bar">WATERWORLD ARCADE</div>
+        <div class="game-title-bar">WATERTOY ARCADE</div> {/* Título Cambiado */}
         <p id="messageBoard">PC: Flechas=Inclinar, A/D=Jets. Móvil: Botones/Activar Sensor.</p>
 
         <div class="game-console">
@@ -17,34 +17,15 @@
                 <canvas id="gameCanvas"></canvas>
                 <div class="underwater-bg"></div>
                 
-                <div id="startScreen" style="display: flex;"> {/* Asegurar que se muestra al inicio */}
-                    <h1>Waterworld Arcade</h1>
-                    <p>¡Selecciona un modo de juego!</p>
-                    <button id="startNormalModeButton" class="mode-select-button normal-mode-button">Modo Normal</button>
-                    <button id="startArcadeModeButton" class="mode-select-button arcade-mode-button">Modo Arcade</button>
+                <div id="startScreen" style="display: flex;">
+                    <h1>WaterToy Arcade</h1> {/* Título Cambiado */}
+                    <p>¡Encesta todos los aros!</p>
+                    <button id="startGameButton" class="mode-select-button normal-mode-button">Iniciar Juego</button> {/* Un solo botón de inicio */}
                     <button id="howToPlayButton" class="how-to-play-main-button">Cómo Jugar</button> 
                     <p class="credits">Creado por orochi_iory<br>con la ayuda de Gemini</p>
                 </div>
 
-                <div id="levelStartScreen" class="modal-screen" style="display: none;">
-                    <div class="modal-content level-transition-content">
-                        <h2 id="levelStartTitle">Nivel X</h2>
-                        <p id="levelStartObjective">Objetivo: ...</p>
-                        <button id="beginLevelButton">¡Comenzar!</button>
-                    </div>
-                </div>
-
-                <div id="levelEndScreen" class="modal-screen" style="display: none;">
-                    <div class="modal-content level-transition-content">
-                        <h2 id="levelEndTitle">¡Nivel Completado!</h2>
-                        <p id="levelEndTimeBonus">Bonus por tiempo: X</p>
-                        {/* <p id="levelEndScore">Puntuación Nivel: Y</p> Removido si no se usa */}
-                        <p id="levelEndTotalScore">Puntuación Total Arcade: Z</p>
-                        <button id="nextLevelButton">Siguiente Nivel</button>
-                        <button id="arcadeEndToMenuButton">Volver al Menú</button>
-                    </div>
-                </div>
-
+                {/* Modales de nivel Arcade eliminados */}
 
                 <div id="howToPlayScreen" class="modal-screen" style="display: none;">
                     <div class="modal-content">
@@ -52,40 +33,23 @@
                         <h2>Cómo Jugar</h2>
                         <div class="instructions-section">
                             <h3>Controles:</h3>
-                            <p><strong>PC:</strong> Flechas=Inclinar, A/D=Jets.</p>
-                            <p><strong>Móvil:</strong> Botones TILT/JET. Botón SENSOR (si disponible) para control por movimiento.</p>
+                            <p><strong>PC:</strong> Flechas Izquierda/Derecha para inclinar. Tecla 'A' para chorro izquierdo, Tecla 'D' para chorro derecho.</p>
+                            <p><strong>Móvil:</strong> Usa los botones en pantalla para inclinar y activar los chorros. Si tu dispositivo lo permite, puedes activar el "SENSOR" para controlar la inclinación moviendo tu dispositivo.</p>
                         </div>
                         <div class="instructions-section">
-                            <h3>Sistema de Puntuación (General):</h3>
+                            <h3>Objetivo del Juego:</h3>
+                            <p>¡Encesta todos los aros en los palos! Cada aro da puntos. Llenar palos o conseguir rachas de color te dará bonus.</p>
+                        </div>
+                        <div class="instructions-section">
+                            <h3>Puntuación Detallada:</h3>
                             <ul>
                                 <li><strong>Aro Encestado:</strong> 25 puntos.</li>
-                                <li><strong>Racha de Color:</strong> (2 aros mismo color seguidos en palo) = Puntos x2 para el 2º aro.</li>
-                                <li><strong>Palo Lleno:</strong> Multiplica x4 la suma de puntos de los aros de ese palo.</li>
-                                <li><strong>Palo Monocolor:</strong> Multiplica x10 el valor base de los aros de ese palo (ej: 1500 pts).</li>
+                                <li><strong>Racha de Color:</strong> Encestar 2 aros del mismo color seguidos en el mismo palo otorga puntos x2 para el segundo aro.</li>
+                                <li><strong>Palo Lleno (Normal):</strong> Completar un palo con aros de diferentes colores multiplica x4 la suma de los puntos obtenidos por los aros en ese palo.</li>
+                                <li><strong>Palo Lleno (Monocolor):</strong> Completar un palo con todos los aros del mismo color multiplica x10 el valor base de los aros de ese palo (ej: 25 puntos/aro * 6 aros * 10 = 1500 puntos).</li>
+                                <li><strong>Todos los Palos Llenos:</strong> Si se llenan todos los palos, la puntuación acumulada hasta ese momento se multiplica x2.</li>
+                                <li><strong>¡BONO MAESTRO!:</strong> Si llenas todos los palos y cada palo es monocolor con un color diferente (usando los 4 colores disponibles), ¡tu puntuación (antes de cualquier otro multiplicador final) se multiplica x100!</li>
                             </ul>
-                        </div>
-                        <div class="instructions-section">
-                             <h3>Modo Normal:</h3>
-                             <p>El objetivo es llenar todos los palos. ¡Consigue la mayor puntuación!</p>
-                             <ul>
-                                <li><strong>Todos los Palos Llenos:</strong> Multiplica x2 la puntuación acumulada.</li>
-                                <li><strong>¡BONO MAESTRO!:</strong> Si todos los palos son monocolor (uno de cada color), ¡multiplica x100 la puntuación!</li>
-                            </ul>
-                        </div>
-                        <div class="instructions-section">
-                             <h3>Modo Arcade:</h3>
-                             <p>Supera 5 niveles con objetivos y configuraciones de palos variables. Tiempo límite: 1:30 por nivel.</p>
-                             <p><strong>Objetivo del Nivel:</strong> Llenar 2 palos completos <strong>O</strong> tener al menos 3 aros en cada uno de los 4 palos.</p>
-                             <ul>
-                                 <li><strong>Pasar de Nivel:</strong> Al cumplir el objetivo. Recibes bonus por tiempo restante.</li>
-                                 <li><strong>Game Over:</strong> Si el tiempo se agota.</li>
-                                 <li><strong>Configuración de Palos por Nivel:</strong></li>
-                                 <li>Nivel 1: Estándar.</li>
-                                 <li>Nivel 2: 4 palos en línea horizontal en el centro.</li>
-                                 <li>Nivel 3: Estándar con posiciones Y invertidas.</li>
-                                 <li>Nivel 4: Palos como Nivel 1, se mueven horizontalmente.</li>
-                                 <li>Nivel 5: 4 palos en el centro, moviéndose verticalmente.</li>
-                             </ul>
                         </div>
                     </div>
                 </div>
