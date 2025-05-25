@@ -1,17 +1,16 @@
-console.log(">>>> Watertoy Arcade - script.js execution started. Document readyState:", document.readyState);
+// Asegurarse de que este script se ejecute después de que el DOM esté listo (usar 'defer' en HTML)
+console.log(">>>> Watertoy Arcade - script.js execution started.");
 
-// --- DEFINICIÓN DE LA FUNCIÓN PRINCIPAL ---
-function initializeAndRunGame() {
-    console.log(">>>> initializeAndRunGame() called.");
+const canvas = document.getElementById('gameCanvas');
 
-    const canvas = document.getElementById('gameCanvas');
-    if (!canvas) {
-        console.error("!!!!!!!! FATAL ERROR: Canvas element with id 'gameCanvas' NOT FOUND !!!!!!!");
-        const body = document.querySelector('body');
-        if (body) body.innerHTML = '<h1 style="color:red; text-align:center; margin-top: 50px;">Error: No se pudo cargar el juego (Canvas no encontrado).</h1>';
-        return; 
-    }
-    console.log(">>>> Canvas found:", canvas);
+// Verificación crítica del canvas al inicio
+if (!canvas) {
+    console.error("!!!!!!!! FATAL ERROR: Canvas element with id 'gameCanvas' NOT FOUND !!!!!!!");
+    const body = document.querySelector('body');
+    if (body) body.innerHTML = '<h1 style="color:red; text-align:center; margin-top: 50px;">Error: No se pudo cargar el juego (Canvas no encontrado).</h1>';
+    // No continuar si el canvas no existe
+} else {
+    console.log(">>>> Canvas found.");
     const ctx = canvas.getContext('2d');
 
     const messageBoard = document.getElementById('messageBoard');
@@ -22,7 +21,6 @@ function initializeAndRunGame() {
     const resetButton = document.getElementById('resetButton');
     const enableSensorButton = document.getElementById('enableSensorButton');
     const fullscreenButton = document.getElementById('fullscreenButton'); 
-    const gameContainer = document.querySelector('.game-container'); 
     const startScreen = document.getElementById('startScreen');
     const startGameButton = document.getElementById('startGameButton'); 
     const howToPlayButton = document.getElementById('howToPlayButton');
@@ -45,7 +43,7 @@ function initializeAndRunGame() {
     function drawRing(ring) { ctx.save(); ctx.translate(ring.x, ring.y); if ((!ring.isFlat || ring.landed) && !ring.isSlidingOnPeg) { ctx.rotate(ring.zRotationAngle); } const outerRadius = RING_OUTER_RADIUS; const innerRadiusMaterial = RING_OUTER_RADIUS - RING_VISUAL_THICKNESS; if (ring.isFlat) { const currentFlatThickness = ring.landed ? FLAT_RING_VIEW_THICKNESS : GROUND_FLAT_RING_THICKNESS; const halfFlatViewThickness = currentFlatThickness / 2; const flatDrawWidth = outerRadius * 2; ctx.fillStyle = RING_OUTLINE_COLOR; ctx.fillRect( -flatDrawWidth / 2 - RING_OUTLINE_WIDTH_ON_SCREEN, -halfFlatViewThickness - RING_OUTLINE_WIDTH_ON_SCREEN, flatDrawWidth + (RING_OUTLINE_WIDTH_ON_SCREEN * 2), currentFlatThickness + (RING_OUTLINE_WIDTH_ON_SCREEN * 2) ); ctx.fillStyle = ring.color; ctx.fillRect( -flatDrawWidth / 2, -halfFlatViewThickness, flatDrawWidth, currentFlatThickness ); } else { const scaleYValue = Math.abs(Math.cos(ring.rotationAngle)); const effectiveScaleY = Math.max(0.08, scaleYValue); if (scaleYValue < 0.08 && !ring.landed) { const tempFlatThickness = GROUND_FLAT_RING_THICKNESS * 0.8; const halfFlatViewThickness = tempFlatThickness / 2; const flatDrawWidth = outerRadius * 2; ctx.fillStyle = RING_OUTLINE_COLOR; ctx.fillRect( -flatDrawWidth / 2 - RING_OUTLINE_WIDTH_ON_SCREEN, -halfFlatViewThickness - RING_OUTLINE_WIDTH_ON_SCREEN, flatDrawWidth + (RING_OUTLINE_WIDTH_ON_SCREEN * 2), tempFlatThickness + (RING_OUTLINE_WIDTH_ON_SCREEN * 2) ); ctx.fillStyle = ring.color; ctx.fillRect( -flatDrawWidth / 2, -halfFlatViewThickness, flatDrawWidth, tempFlatThickness ); } else { ctx.scale(1, effectiveScaleY); const outlineScaledOffset = RING_OUTLINE_WIDTH_ON_SCREEN / effectiveScaleY; ctx.beginPath(); ctx.arc(0, 0, outerRadius + outlineScaledOffset, 0, Math.PI * 2, false); ctx.arc(0, 0, Math.max(0, innerRadiusMaterial - outlineScaledOffset), 0, Math.PI * 2, true); ctx.fillStyle = RING_OUTLINE_COLOR; ctx.fill(); ctx.beginPath(); ctx.arc(0, 0, outerRadius, 0, Math.PI * 2, false); ctx.arc(0, 0, innerRadiusMaterial, 0, Math.PI * 2, true);    ctx.fillStyle = ring.color; ctx.fill(); } } ctx.restore(); }
     function drawAllPegsAndLandedRings() { if(!pegs) return; pegs.forEach(peg => { ctx.fillStyle = PEG_FILL_COLOR; ctx.strokeStyle = PEG_STROKE_COLOR; ctx.lineWidth = 2; const pegTopY = peg.bottomY - peg.height; ctx.beginPath(); ctx.roundRect(peg.x - PEG_VISUAL_WIDTH / 2, pegTopY, PEG_VISUAL_WIDTH, peg.height, [PEG_VISUAL_WIDTH/3, PEG_VISUAL_WIDTH/3, 0, 0]); ctx.fill(); ctx.stroke(); peg.landedRings.forEach(drawRing); }); }
     function drawScoreOnCanvas() { if (startScreen && startScreen.style.display === 'flex' && !gameRunning) return; ctx.save(); ctx.font = `bold ${currentScoreDisplaySize}px Arial`; ctx.textAlign = 'right'; ctx.textBaseline = 'top'; ctx.shadowColor = 'rgba(0, 0, 0, 0.7)'; ctx.shadowBlur = 3; ctx.shadowOffsetX = 1; ctx.shadowOffsetY = 1; if (scorePulseActive) { ctx.fillStyle = '#FFD700'; } else { ctx.fillStyle = 'rgba(255, 255, 255, 0.9)'; } ctx.fillText(`Score: ${score}`, gameScreenWidth - 10, 10); ctx.restore(); }
-    let instructionTimeout = null; function showMessage(text, duration = 3000, isInstruction = false) { if (instructionTimeout && !isInstruction) { clearTimeout(instructionTimeout); } if(messageBoard) {messageBoard.textContent = text; messageBoard.style.opacity = 1;} if (!isInstruction) { instructionTimeout = setTimeout(() => { if(messageBoard) messageBoard.style.opacity = 0; instructionTimeout = null; setTimeout(setPersistentInstructions, 700); }, duration); } }
+    instructionTimeout = null; function showMessage(text, duration = 3000, isInstruction = false) { if (instructionTimeout && !isInstruction) { clearTimeout(instructionTimeout); } if(messageBoard) {messageBoard.textContent = text; messageBoard.style.opacity = 1;} if (!isInstruction) { instructionTimeout = setTimeout(() => { if(messageBoard) messageBoard.style.opacity = 0; instructionTimeout = null; setTimeout(setPersistentInstructions, 700); }, duration); } }
     function setPersistentInstructions() { if (instructionTimeout && messageBoard && messageBoard.textContent !== "" && !messageBoard.textContent.toLowerCase().includes("pc:")) { return; } let instructionMessage = "PC: Flechas=Inclinar, A/D=Jets."; if (sensorAvailable) { if (sensorActive) instructionMessage += " Móvil: Sensor ACTIVO."; else instructionMessage += " Móvil: Botones/Activar Sensor."; } else { instructionMessage += " Móvil: Botones TILT."; } if(messageBoard) { messageBoard.textContent = instructionMessage; messageBoard.style.opacity = 1;} }
     function updateScore(pointsToAdd, message = "") { if (pointsToAdd > 0) { score += pointsToAdd; scorePulseActive = true; scorePulseTimer = SCORE_PULSE_DURATION; currentScoreDisplaySize = SCORE_PULSE_SIZE; } else if (pointsToAdd < 0) { score += pointsToAdd; } if (message && message !== "") { showMessage(message, 2500); } }
     function checkAndApplyBonuses(landedRing, peg) { let pointsForThisSpecificRing = landedRing.basePoints; let bonusMessageText = ""; baseScoreFromRings += landedRing.basePoints; if ('vibrate' in navigator) { navigator.vibrate(75); } let mightBecomeMonoColor = true; if(peg.landedRings.length === MAX_RINGS_PER_PEG) { const firstColorInPeg = peg.landedRings[0].color; for(const r of peg.landedRings) { if (r.color !== firstColorInPeg) { mightBecomeMonoColor = false; break; } } } else { mightBecomeMonoColor = false; } if (peg.landedRings.length > 1 && !mightBecomeMonoColor && landedRing.landedOrder > 0 ) { const previousRingInStack = peg.landedRings[landedRing.landedOrder -1]; if (previousRingInStack && previousRingInStack.color === landedRing.color) { let colorStreakBonus = landedRing.basePoints; pointsForThisSpecificRing += colorStreakBonus; bonusScoreFromColorStreak += colorStreakBonus; bonusMessageText += ` Color x2!`;} } landedRing.awardedPoints = pointsForThisSpecificRing; createFloatingScore(landedRing.x, landedRing.finalYonPeg - RING_OUTER_RADIUS, `+${pointsForThisSpecificRing}${bonusMessageText}`, landedRing.color); updateScore(pointsForThisSpecificRing); landedRingsCount++; if (peg.landedRings.length === MAX_RINGS_PER_PEG && !peg.isFullAndScored) { peg.isFullAndScored = true; let isCurrentPegMonoColor = true; const firstLandedColor = peg.landedRings[0].color; for (let k = 1; k < MAX_RINGS_PER_PEG; k++) { if (peg.landedRings[k].color !== firstLandedColor) { isCurrentPegMonoColor = false; break; } } let additionalBonusScore = 0; let pegCompletionMessage = ""; if (isCurrentPegMonoColor) { peg.isMonoColor = true; peg.monoColorValue = firstLandedColor; let currentPegAwardedPointsSum = 0; peg.landedRings.forEach(r => currentPegAwardedPointsSum += r.awardedPoints); let targetMonoScore = (landedRing.basePoints * MAX_RINGS_PER_PEG) * 10; additionalBonusScore = targetMonoScore - currentPegAwardedPointsSum; if(additionalBonusScore < 0) additionalBonusScore = 0; bonusScoreFromMonoColorPegsSpecific += additionalBonusScore; pegCompletionMessage = `PALO MONOCOLOR! (x10)`; } else { let pegTotalAwardedPoints = 0; peg.landedRings.forEach(r => { pegTotalAwardedPoints += r.awardedPoints; }); additionalBonusScore = pegTotalAwardedPoints * 3; bonusScoreFromFullPegsGeneral += additionalBonusScore; pegCompletionMessage = `PALO LLENO! (x4)`; } if(additionalBonusScore > 0) updateScore(additionalBonusScore, pegCompletionMessage); checkAllPegsCompleted(); } }
@@ -65,12 +63,13 @@ function initializeAndRunGame() {
     function handleOrientation(event) { let gamma = event.gamma; if (gamma === null || gamma === undefined) return; const MAX_EFFECTIVE_GAMMA_SENSOR = 30; sensorTiltX = gamma / MAX_EFFECTIVE_GAMMA_SENSOR; sensorTiltX = Math.max(-1, Math.min(1, sensorTiltX)); }
     function requestSensorPermission() { if(!enableSensorButton) return; enableSensorButton.classList.add('sensor-button--activating'); setTimeout(() => { if(enableSensorButton) enableSensorButton.classList.remove('sensor-button--activating'); }, 300); if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') { DeviceOrientationEvent.requestPermission() .then(permissionState => { if (permissionState === 'granted') { window.addEventListener('deviceorientation', handleOrientation, true); sensorActive = true; if(enableSensorButton) enableSensorButton.style.display = 'none'; if(tiltLeftButton) tiltLeftButton.style.display = 'none'; if(tiltRightButton) tiltRightButton.style.display = 'none'; setPersistentInstructions(); } else { showMessage("Permiso del sensor denegado.", 3000, true); if(enableSensorButton) {enableSensorButton.textContent = "Sensor Denegado"; enableSensorButton.disabled = true;} } }).catch(error => { console.error("Error al solicitar permiso del sensor:", error); showMessage("Error al activar sensor.", 3000, true); }); } else if (window.DeviceOrientationEvent){ window.addEventListener('deviceorientation', handleOrientation, true); sensorActive = true; if(enableSensorButton) enableSensorButton.style.display = 'none'; if(tiltLeftButton) tiltLeftButton.style.display = 'none'; if(tiltRightButton) tiltRightButton.style.display = 'none'; setPersistentInstructions(); } else { showMessage("Sensor no soportado.", 3000, true); if(enableSensorButton) enableSensorButton.style.display = 'none'; } }
 
-    // --- EVENT LISTENERS (verificaciones incluidas) ---
+    // --- MANEJO DE EVENTOS DE BOTONES (con verificación de existencia) ---
     if (leftJetButton) { leftJetButton.addEventListener('mousedown', () => { leftJetInputActive = true; }); leftJetButton.addEventListener('mouseup', () => { leftJetInputActive = false; }); leftJetButton.addEventListener('mouseleave', () => { if(leftJetInputActive) {leftJetInputActive = false;} }); leftJetButton.addEventListener('touchstart', (e) => { e.preventDefault(); leftJetInputActive = true; }, { passive: false }); leftJetButton.addEventListener('touchend', (e) => { e.preventDefault(); leftJetInputActive = false; }); }
     if (rightJetButton) { rightJetButton.addEventListener('mousedown', () => { rightJetInputActive = true; }); rightJetButton.addEventListener('mouseup', () => { rightJetInputActive = false; }); rightJetButton.addEventListener('mouseleave', () => { if(rightJetInputActive) {rightJetInputActive = false;} }); rightJetButton.addEventListener('touchstart', (e) => { e.preventDefault(); rightJetInputActive = true; }, { passive: false }); rightJetButton.addEventListener('touchend', (e) => { e.preventDefault(); rightJetInputActive = false; }); }
     if (tiltLeftButton) { tiltLeftButton.addEventListener('mousedown', () => { tiltLeftActive = true; }); tiltLeftButton.addEventListener('mouseup', () => { tiltLeftActive = false; }); tiltLeftButton.addEventListener('mouseleave', () => { if (tiltLeftActive) { tiltLeftActive = false; } }); tiltLeftButton.addEventListener('touchstart', (e) => { e.preventDefault(); tiltLeftActive = true; }, { passive: false }); tiltLeftButton.addEventListener('touchend', (e) => { e.preventDefault(); tiltLeftActive = false; }); }
     if (tiltRightButton) { tiltRightButton.addEventListener('mousedown', () => { tiltRightActive = true; }); tiltRightButton.addEventListener('mouseup', () => { tiltRightActive = false; }); tiltRightButton.addEventListener('mouseleave', () => { if (tiltRightActive) { tiltRightActive = false; } }); tiltRightButton.addEventListener('touchstart', (e) => { e.preventDefault(); tiltRightActive = true;}, { passive: false }); tiltRightButton.addEventListener('touchend', (e) => { e.preventDefault(); tiltRightActive = false; });}
-    if (resetButton) { resetButton.addEventListener('click', () => { console.log(">>>> resetButton clicked"); if (gameLoopId) { cancelAnimationFrame(gameLoopId); gameLoopId = null; } gameRunning = false; gameOver = false; hideEndGameScreen(); if(startScreen) startScreen.style.display = 'flex'; else { console.error("Reset: startScreen no se pudo mostrar porque es null!"); return; } if(howToPlayButton) howToPlayButton.style.display = 'inline-block'; score = 0; currentScoreDisplaySize = SCORE_NORMAL_SIZE; if(ctx) ctx.clearRect(0, 0, canvas.width, canvas.height); drawScoreOnCanvas(); if (!gameLoopId) { if (typeof performance !== 'undefined' && performance.now) { lastTime = performance.now(); } else { lastTime = Date.now(); } gameLoopId = requestAnimationFrame(gameLoop); }}); }
+    
+    if (resetButton) { resetButton.addEventListener('click', () => { console.log(">>>> resetButton clicked"); if (gameLoopId) { cancelAnimationFrame(gameLoopId); gameLoopId = null; } gameRunning = false; gameOver = false; hideEndGameScreen(); if(startScreen) startScreen.style.display = 'flex'; else { console.error("Reset: startScreen not found!"); return;} if(howToPlayButton) howToPlayButton.style.display = 'inline-block'; score = 0; currentScoreDisplaySize = SCORE_NORMAL_SIZE; if(ctx) ctx.clearRect(0, 0, canvas.width, canvas.height); drawScoreOnCanvas(); if (!gameLoopId) { if (typeof performance !== 'undefined' && performance.now) { lastTime = performance.now(); } else { lastTime = Date.now(); } gameLoopId = requestAnimationFrame(gameLoop); }}); }
     if (fullscreenButton) { fullscreenButton.addEventListener('click', () => { const elem = gameContainer; if (!document.fullscreenElement) { if (elem.requestFullscreen) { elem.requestFullscreen(); } else if (elem.webkitRequestFullscreen) { elem.webkitRequestFullscreen(); } } else { if (document.exitFullscreen) { document.exitFullscreen(); } }}); }
     if (howToPlayButton) { howToPlayButton.addEventListener('click', () => { if(howToPlayScreen) howToPlayScreen.style.display = 'flex';}); }
     if (closeHowToPlayButton) { closeHowToPlayButton.addEventListener('click', () => { if(howToPlayScreen) howToPlayScreen.style.display = 'none';}); }
@@ -79,9 +78,14 @@ function initializeAndRunGame() {
     window.addEventListener('keyup', (e) => { let keyProcessed = false; switch (e.code) { case KEY_LEFT_ARROW: tiltLeftActive = false; keyProcessed = true; break; case KEY_RIGHT_ARROW: tiltRightActive = false; keyProcessed = true; break; case KEY_JET_LEFT: leftJetInputActive = false; keyProcessed = true; break; case KEY_JET_RIGHT: rightJetInputActive = false; keyProcessed = true; break; } if (keyProcessed && (gameRunning || (startScreen && startScreen.style.display === 'none'))) e.preventDefault(); });
     if (enableSensorButton && window.DeviceOrientationEvent) { enableSensorButton.style.display = 'inline-block'; enableSensorButton.disabled = false; enableSensorButton.textContent = "SENSOR"; enableSensorButton.addEventListener('click', requestSensorPermission); } else if(enableSensorButton) { enableSensorButton.style.display = 'none'; }
 
-    // --- GAME LOOP ---
     function gameLoop(currentTime) { 
-        if (!gameRunning && !gameOver) { if (typeof performance !== 'undefined' && performance.now) { lastTime = performance.now(); } else { lastTime = Date.now(); } if(ctx) ctx.clearRect(0, 0, canvas.width, canvas.height); if (startScreen && (startScreen.style.display === 'none' || startScreen.style.display === '')) { drawScoreOnCanvas(); } gameLoopId = requestAnimationFrame(gameLoop); return; }
+        if (!gameRunning && !gameOver) { 
+            if (typeof performance !== 'undefined' && performance.now) { lastTime = performance.now(); } else { lastTime = Date.now(); }
+            if(ctx) ctx.clearRect(0, 0, canvas.width, canvas.height); 
+            if (startScreen && (startScreen.style.display === 'none' || startScreen.style.display === '')) { drawScoreOnCanvas(); }
+            gameLoopId = requestAnimationFrame(gameLoop); 
+            return;
+        }
         if (gameOver) { return; }
         const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now(); let dt = (now - lastTime) / 1000.0; if (dt <= 0 || isNaN(dt) || dt > (TARGET_DT * 5) ) dt = TARGET_DT; lastTime = now; const deltaTime = dt; 
         if(ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -100,17 +104,18 @@ function initializeAndRunGame() {
         if(gameRunning && !gameOver){ gameLoopId = requestAnimationFrame(gameLoop); }
     }
     
-    // --- Botón de Inicio de Juego ---
     if (startGameButton) {
         startGameButton.addEventListener('click', () => {
             console.log(">>>> startGameButton clicked");
             if(startScreen) startScreen.style.display = 'none'; 
-            if (howToPlayScreen && howToPlayScreen.style.display !== 'none') howToPlayScreen.style.display = 'none';
-            
+            else { console.error("startGameButton: startScreen not found, cannot hide!"); return;}
+
+            if (howToPlayScreen && howToPlayScreen.style.display !== 'none') {
+                howToPlayScreen.style.display = 'none';
+            }
             initGame(); 
             gameRunning = true; 
             gameOver = false;
-    
             if (gameLoopId) { cancelAnimationFrame(gameLoopId); gameLoopId = null; }
             if (typeof performance !== 'undefined' && performance.now) { lastTime = performance.now(); } 
             else { lastTime = Date.now(); }
@@ -118,10 +123,9 @@ function initializeAndRunGame() {
             gameLoopId = requestAnimationFrame(gameLoop);
         });
     } else {
-        console.error("ERROR: startGameButton NOT FOUND - El juego no puede iniciarse con el botón.");
+        console.error("ERROR: startGameButton NOT FOUND - El juego no puede iniciarse.");
     }
 
-    // --- Configuración Inicial Final ---
     console.log(">>>> Script principal: Configurando estado visual inicial...");
     if (messageBoard) setPersistentInstructions(); 
     else { console.error("ERROR: messageBoard NOT FOUND en setup inicial."); }
@@ -133,15 +137,10 @@ function initializeAndRunGame() {
     }
     if (typeof performance !== 'undefined' && performance.now) { lastTime = performance.now(); } 
     else { lastTime = Date.now(); }
-    console.log(">>>> Iniciando el primer gameloop para UI (debería mostrar pantalla de inicio).");
+    console.log(">>>> Iniciando el primer gameloop para UI.");
     gameLoopId = requestAnimationFrame(gameLoop); 
-
-} // Fin de initializeAndRunGame
+}
 
 // --- LLAMADA A LA FUNCIÓN PRINCIPAL ---
-// Solo se llama si el canvas existe, chequeo hecho al principio del script.
-if (canvas && ctx) {
-    initializeAndRunGame();
-} else {
-    console.error("<<<< Script NO inicializado porque el canvas o el contexto 2D fallaron en obtenerse.");
-}
+// Se llama solo una vez, el atributo 'defer' en HTML se encarga de esperar al DOM.
+initializeAndRunGame();
