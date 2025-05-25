@@ -12,24 +12,12 @@ body { display: flex; flex-direction: column; justify-content: center; align-ite
 
 /* Estilo único para el botón "Iniciar Juego" */
 .start-game-button { 
-    padding: 15px 30px; 
-    font-size: 1.3em; 
-    color: white; 
-    border: none; 
-    border-radius: 10px; 
-    cursor: pointer; 
-    transition: all 0.1s ease; 
-    margin-top: 20px; 
-    margin-bottom: 15px; 
-    min-width: 220px; 
-    background-color: #2ECC40; 
-    box-shadow: 0 5px #1e8a2b; 
+    padding: 15px 30px; font-size: 1.3em; color: white; border: none; border-radius: 10px; 
+    cursor: pointer; transition: all 0.1s ease; margin-top: 20px; margin-bottom: 15px; 
+    min-width: 220px; background-color: #2ECC40; box-shadow: 0 5px #1e8a2b; 
 }
 .start-game-button:hover { background-color: #27ae60; }
-.start-game-button:active { 
-    transform: translateY(3px); 
-    box-shadow: 0 2px #1e8a2b; 
-}
+.start-game-button:active { transform: translateY(3px); box-shadow: 0 2px #1e8a2b; }
 
 .how-to-play-main-button { background-color: #3498DB; box-shadow: 0 5px #2980b9; padding: 12px 22px; font-size: 1.1em; color: white; border: none; border-radius: 8px; cursor: pointer; transition: all 0.1s ease; margin-top: 10px; margin-bottom: 20px; }
 .how-to-play-main-button:hover { background-color: #2c81ba; }
@@ -75,5 +63,4 @@ body { display: flex; flex-direction: column; justify-content: center; align-ite
 .close-button { position: absolute; top: 8px; right: 12px; font-size: 24px; font-weight: bold; color: #ecf0f1; cursor: pointer; padding: 2px 5px; line-height: 1; }
 .close-button:hover { color: #FFA500; }
 .instructions-section { margin-bottom: 15px; }
-
-/* Estilos para modales de transición de nivel arcade eliminados */
+/* Estilos para .level-transition-content eliminados */
