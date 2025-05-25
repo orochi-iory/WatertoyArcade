@@ -9,10 +9,10 @@
 </head>
 <body>
     <div class="game-container">
-        <div class="game-title-bar">WATERTOY ARCADE</div>
-        <p id="messageBoard">PC: Flechas=Inclinar, A/D=Jets. Móvil: Botones/Activar Sensor.</p>
-
-        <div class="game-console">
+        {/* game-title-bar se integrará visualmente con game-console */}
+        <div class="game-console"> 
+            <div class="game-title-bar">WATERTOY ARCADE</div> {/* Movido aquí para agrupar */}
+            {/* messageBoard eliminado */}
             <div class="screen-area">
                 <canvas id="gameCanvas"></canvas>
                 <div class="underwater-bg"></div>
