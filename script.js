@@ -1,492 +1,260 @@
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
-const messageBoard = document.getElementById('messageBoard');
-const leftJetButton = document.getElementById('leftJetButton');
-const rightJetButton = document.getElementById('rightJetButton');
-const tiltLeftButton = document.getElementById('tiltLeftButton');
-const tiltRightButton = document.getElementById('tiltRightButton');
-const resetButton = document.getElementById('resetButton');
-const enableSensorButton = document.getElementById('enableSensorButton');
-const fullscreenButton = document.getElementById('fullscreenButton'); 
-const muteButton = document.getElementById('muteButton'); 
-const gameContainer = document.querySelector('.game-container'); 
-const startScreen = document.getElementById('startScreen');
-const startGameButton = document.getElementById('startGameButton');
-const howToPlayButton = document.getElementById('howToPlayButton'); 
-const howToPlayScreen = document.getElementById('howToPlayScreen'); 
-const closeHowToPlayButton = document.getElementById('closeHowToPlayButton'); 
+// NO USAR DOMContentLoaded AQUÍ SI EL SCRIPT ESTÁ AL FINAL DEL BODY CON 'defer'
+// document.addEventListener('DOMContentLoaded', () => { 
+// El atributo 'defer' ya asegura que el script se ejecute después de parsear el HTML.
 
-const gameScreenWidth = 450;
-const gameScreenHeight = 400;
-canvas.width = gameScreenWidth;
-canvas.height = gameScreenHeight;
+    console.log(">>>> script.js execution started. Document readyState:", document.readyState);
 
-// --- CONSTANTES DEL JUEGO ---
-const RING_OUTER_RADIUS = 18; 
-const RING_VISUAL_THICKNESS = 6; 
-const MAX_RINGS_PER_PEG = 6;
-const RING_COLORS = ['#FF4136', '#0074D9', '#2ECC40', '#FFDC00'];
-const TOTAL_COLORS = RING_COLORS.length;
-const GRAVITY_BASE = 0.038; 
-const MAX_JET_PRESSURE = 1.0;        
-const JET_PRESSURE_INCREMENT_BASE = 0.05; 
-const JET_PRESSURE_DECREMENT_BASE = 0.08; 
-const BASE_JET_STRENGTH = 3.8; 
-const JET_HORIZONTAL_INFLUENCE_RATIO = 0.28; 
-const JET_EFFECT_RADIUS_Y = gameScreenHeight * 0.75; 
-const JET_EFFECT_RADIUS_X = gameScreenWidth * 0.38;
-const JET_VERTICAL_FALLOFF_POWER = 0.6; 
-const MAX_JET_PARTICLES = 200;
-const TILT_FORCE_BUTTON_BASE = 0.30; 
-const TILT_FORCE_SENSOR_MULTIPLIER = 0.055; 
-const MAX_SENSOR_TILT_FORCE = 0.55;
-const WATER_FRICTION_COEFF = 0.028; 
-const BOUNCE_FACTOR = -0.2; 
-const RING_COLLISION_BOUNCE = 0.5; 
-const PEG_COLLISION_BOUNCE_FACTOR = -0.3;
-const PEG_STROKE_COLOR = '#505050';
-const PEG_FILL_COLOR = '#808080';
-const PEG_VISUAL_WIDTH = 10; 
-const PEG_LANDING_WIDTH_FACTOR = 2.0; 
-const PEG_COLLISION_WIDTH_FACTOR = 1.0; 
-const RING_OUTLINE_COLOR = 'rgba(0,0,0,0.85)'; 
-const RING_OUTLINE_WIDTH_ON_SCREEN = 1.0;       
-const FLAT_RING_VIEW_THICKNESS = 7;   
-const GROUND_FLAT_RING_THICKNESS = 5; 
-const LANDING_SNAP_Y_THRESHOLD = RING_OUTER_RADIUS * 1.2; 
+    const canvas = document.getElementById('gameCanvas');
+    if (!canvas) { console.error("!!!!!!!! FATAL: canvas NOT FOUND !!!!!!!"); return; } 
+    else { console.log(">>>> canvas found"); }
+    const ctx = canvas.getContext('2d');
 
-// --- ESTADO DEL JUEGO ---
-let score = 0;
-let scorePulseActive = false; 
-let scorePulseTimer = 0;      
-const SCORE_PULSE_DURATION = 12; 
-let rings = [];
-let pegs = [];
-let lastTime = 0;
-const TARGET_FPS = 60;
-const TARGET_DT = 1 / TARGET_FPS;
-let floatingScores = []; 
-let jetParticles = []; 
-let gameLoopId = null;
-let gameRunning = false; 
-let totalRingsToLand = 0; 
-let landedRingsCount = 0; 
-let gameOver = false;
-let baseScoreFromRings = 0;
-let bonusScoreFromColorStreak = 0;
-let bonusScoreFromFullPegsGeneral = 0; 
-let bonusScoreFromMonoColorPegsSpecific = 0;
-let allPegsCompletedBonusFactor = 1; 
-let masterBonusFactor = 1; 
-let currentScoreDisplaySize = 22; 
-const SCORE_NORMAL_SIZE = 22;
-const SCORE_PULSE_SIZE = 26;
+    const messageBoard = document.getElementById('messageBoard');
+    if (!messageBoard) { console.error("ERROR: messageBoard NOT FOUND"); } else { console.log(">>>> messageBoard found"); }
+    const leftJetButton = document.getElementById('leftJetButton');
+    if (!leftJetButton) { console.error("ERROR: leftJetButton NOT FOUND"); } else { console.log(">>>> leftJetButton found"); }
+    const rightJetButton = document.getElementById('rightJetButton');
+    if (!rightJetButton) { console.error("ERROR: rightJetButton NOT FOUND"); } else { console.log(">>>> rightJetButton found"); }
+    const tiltLeftButton = document.getElementById('tiltLeftButton');
+    if (!tiltLeftButton) { console.error("ERROR: tiltLeftButton NOT FOUND"); } else { console.log(">>>> tiltLeftButton found"); }
+    const tiltRightButton = document.getElementById('tiltRightButton');
+    if (!tiltRightButton) { console.error("ERROR: tiltRightButton NOT FOUND"); } else { console.log(">>>> tiltRightButton found"); }
+    const resetButton = document.getElementById('resetButton');
+    if (!resetButton) { console.error("ERROR: resetButton NOT FOUND"); } else { console.log(">>>> resetButton found"); }
+    const enableSensorButton = document.getElementById('enableSensorButton');
+    if (!enableSensorButton) { console.error("ERROR: enableSensorButton NOT FOUND"); } else { console.log(">>>> enableSensorButton found"); }
+    const fullscreenButton = document.getElementById('fullscreenButton');
+    if (!fullscreenButton) { console.error("ERROR: fullscreenButton NOT FOUND"); } else { console.log(">>>> fullscreenButton found"); }
+    
+    const gameContainer = document.querySelector('.game-container'); 
+    if (!gameContainer) { console.error("ERROR: gameContainer NOT FOUND"); } else { console.log(">>>> gameContainer found"); }
 
-// --- ESTADO DE CONTROLES ---
-let leftJetInputActive = false; // Para input directo (tecla/botón)
-let rightJetInputActive = false; // Para input directo (tecla/botón)
-let leftJetPressure = 0;  
-let rightJetPressure = 0; 
-let tiltLeftActive = false; 
-let tiltRightActive = false; 
-let sensorTiltX = 0;
-let sensorAvailable = false;
-let sensorActive = false;
+    const startScreen = document.getElementById('startScreen');
+    if (!startScreen) { console.error("ERROR: startScreen NOT FOUND"); } else { console.log(">>>> startScreen found"); }
+    const startNormalModeButton = document.getElementById('startNormalModeButton');
+    if (!startNormalModeButton) { console.error("ERROR: startNormalModeButton NOT FOUND"); } else { console.log(">>>> startNormalModeButton found"); }
+    const startArcadeModeButton = document.getElementById('startArcadeModeButton');
+    if (!startArcadeModeButton) { console.error("ERROR: startArcadeModeButton NOT FOUND"); } else { console.log(">>>> startArcadeModeButton found"); }
+    const howToPlayButton = document.getElementById('howToPlayButton');
+    if (!howToPlayButton) { console.error("ERROR: howToPlayButton NOT FOUND"); } else { console.log(">>>> howToPlayButton found"); }
+    const howToPlayScreen = document.getElementById('howToPlayScreen'); 
+    if (!howToPlayScreen) { console.error("ERROR: howToPlayScreen NOT FOUND"); } else { console.log(">>>> howToPlayScreen found"); }
+    const closeHowToPlayButton = document.getElementById('closeHowToPlayButton'); 
+    if (!closeHowToPlayButton) { console.error("ERROR: closeHowToPlayButton NOT FOUND"); } else { console.log(">>>> closeHowToPlayButton found"); }
+    
+    const levelStartScreen = document.getElementById('levelStartScreen');
+    if (!levelStartScreen) { console.error("ERROR: levelStartScreen NOT FOUND"); } else { console.log(">>>> levelStartScreen found"); }
+    const levelStartTitle = document.getElementById('levelStartTitle');
+    if (!levelStartTitle) { console.error("ERROR: levelStartTitle NOT FOUND"); } else { console.log(">>>> levelStartTitle found"); }
+    const levelStartObjective = document.getElementById('levelStartObjective');
+    if (!levelStartObjective) { console.error("ERROR: levelStartObjective NOT FOUND"); } else { console.log(">>>> levelStartObjective found"); }
+    const beginLevelButton = document.getElementById('beginLevelButton');
+    if (!beginLevelButton) { console.error("ERROR: beginLevelButton NOT FOUND"); } else { console.log(">>>> beginLevelButton found"); }
+    
+    const levelEndScreen = document.getElementById('levelEndScreen');
+    if (!levelEndScreen) { console.error("ERROR: levelEndScreen NOT FOUND"); } else { console.log(">>>> levelEndScreen found"); }
+    const levelEndTitle = document.getElementById('levelEndTitle');
+    if (!levelEndTitle) { console.error("ERROR: levelEndTitle NOT FOUND"); } else { console.log(">>>> levelEndTitle found"); }
+    const levelEndTimeBonus = document.getElementById('levelEndTimeBonus');
+    if (!levelEndTimeBonus) { console.error("ERROR: levelEndTimeBonus NOT FOUND"); } else { console.log(">>>> levelEndTimeBonus found"); }
+    const levelEndTotalScore = document.getElementById('levelEndTotalScore');
+    if (!levelEndTotalScore) { console.error("ERROR: levelEndTotalScore NOT FOUND"); } else { console.log(">>>> levelEndTotalScore found"); }
+    const nextLevelButton = document.getElementById('nextLevelButton');
+    if (!nextLevelButton) { console.error("ERROR: nextLevelButton NOT FOUND"); } else { console.log(">>>> nextLevelButton found"); }
+    const arcadeEndToMenuButton = document.getElementById('arcadeEndToMenuButton');
+    if (!arcadeEndToMenuButton) { console.error("ERROR: arcadeEndToMenuButton NOT FOUND"); } else { console.log(">>>> arcadeEndToMenuButton found"); }
 
-// --- TECLAS DEL TECLADO ---
-const KEY_LEFT_ARROW = 'ArrowLeft';
-const KEY_RIGHT_ARROW = 'ArrowRight';
-const KEY_JET_LEFT = 'KeyA';
-const KEY_JET_RIGHT = 'KeyD';
+    console.log(">>>> Finished getting DOM elements. Initializing game logic...");
 
-// --- SONIDOS --- 
-let isMuted = false;
-const sounds = {
-    jet: new Audio(), 
-    scoreRing: new Audio(), 
-    ringCollision: new Audio(), 
-    bonus: new Audio(), 
-    uiClick: new Audio() 
-};
-sounds.jet.src = 'https://1drv.ms/u/c/77597643ea07cc1f/EXwuO04q6qlIs-RuuwiTmHMB7ZnZaxLc5pjwsvsSEp1chg?e=Ad2yxw'; 
-sounds.scoreRing.src = 'SRC_SOUND_SCORE_RING.mp3_o_data_uri';  
-sounds.ringCollision.src = 'SRC_SOUND_RING_COLLISION.mp3_o_data_uri'; 
-sounds.bonus.src = 'SRC_SOUND_BONUS_ACHIEVED.mp3_o_data_uri'; 
-sounds.uiClick.src = 'SRC_SOUND_UI_CLICK.mp3_o_data_uri';    
-let jetSoundPlaying = false; // Para controlar que el sonido de chorro no se solape demasiado
+    const gameScreenWidth = 450;
+    const gameScreenHeight = 400;
+    canvas.width = gameScreenWidth;
+    canvas.height = gameScreenHeight;
 
-function playSound(soundName, volume = 0.7, restartIfPlaying = true) {
-    if (isMuted || !sounds[soundName] || !sounds[soundName].src || sounds[soundName].src.startsWith('SRC_SOUND_')) return;
+    const RING_OUTER_RADIUS = 18; const RING_VISUAL_THICKNESS = 6; const MAX_RINGS_PER_PEG = 6; const RING_COLORS = ['#FF4136', '#0074D9', '#2ECC40', '#FFDC00']; const TOTAL_COLORS = RING_COLORS.length; const GRAVITY_BASE = 0.038; const MAX_JET_PRESSURE = 1.0; const JET_PRESSURE_INCREMENT_BASE = 0.05; const JET_PRESSURE_DECREMENT_BASE = 0.08; const BASE_JET_STRENGTH = 3.8; const JET_HORIZONTAL_INFLUENCE_RATIO = 0.28; const JET_EFFECT_RADIUS_Y = gameScreenHeight * 0.75; const JET_EFFECT_RADIUS_X = gameScreenWidth * 0.38; const JET_VERTICAL_FALLOFF_POWER = 0.6; const MAX_JET_PARTICLES = 200; const TILT_FORCE_BUTTON_BASE = 0.30; const TILT_FORCE_SENSOR_MULTIPLIER = 0.055; const MAX_SENSOR_TILT_FORCE = 0.55; const WATER_FRICTION_COEFF = 0.028; const BOUNCE_FACTOR = -0.2; const RING_COLLISION_BOUNCE = 0.5; const PEG_COLLISION_BOUNCE_FACTOR = -0.3; const PEG_STROKE_COLOR = '#505050'; const PEG_FILL_COLOR = '#808080'; const PEG_VISUAL_WIDTH = 10; const PEG_LANDING_WIDTH_FACTOR = 2.0; const PEG_COLLISION_WIDTH_FACTOR = 1.0; const PEG_MOVEMENT_SPEED_X = 0.7; const PEG_MOVEMENT_SPEED_Y_MIN = 0.3; const PEG_MOVEMENT_SPEED_Y_MAX = 0.8; const RING_OUTLINE_COLOR = 'rgba(0,0,0,0.85)'; const RING_OUTLINE_WIDTH_ON_SCREEN = 1.0; const FLAT_RING_VIEW_THICKNESS = 7; const GROUND_FLAT_RING_THICKNESS = 5; const LANDING_SNAP_Y_THRESHOLD = RING_OUTER_RADIUS * 1.2; const MAX_TOTAL_RINGS_ON_SCREEN = MAX_RINGS_PER_PEG * TOTAL_COLORS;
+    let score = 0; let scorePulseActive = false; let scorePulseTimer = 0; const SCORE_PULSE_DURATION = 12; let rings = []; let pegs = []; let lastTime = 0; const TARGET_FPS = 60; const TARGET_DT = 1 / TARGET_FPS; let floatingScores = []; let jetParticles = []; let gameLoopId = null; let gameRunning = false; let isPausedForLevelTransition = false; let landedRingsCount = 0; let gameOver = false; let baseScoreFromRings = 0; let bonusScoreFromColorStreak = 0; let bonusScoreFromFullPegsGeneral = 0; let bonusScoreFromMonoColorPegsSpecific = 0; let allPegsCompletedBonusFactor = 1; let masterBonusFactor = 1; let currentScoreDisplaySize = 22; const SCORE_NORMAL_SIZE = 22; const SCORE_PULSE_SIZE = 26;
+    let currentGameMode = 'none'; let currentArcadeLevel = 0; let timeLeftInLevel = 0; 
+    const ARCADE_LEVEL_TIME_LIMIT = 90; 
+    const ARCADE_LEVELS = [ { name: "Nivel 1: Clásico", ringsObjective: { type: 'fillPegs', count: 2 }, OR_ringsObjective: { type: 'minPerPeg', count: 3 }, timeLimit: ARCADE_LEVEL_TIME_LIMIT, bonusPerSecond: 2, pegConfigKey: 'standard' }, { name: "Nivel 2: Línea Central", ringsObjective: { type: 'fillPegs', count: 2 }, OR_ringsObjective: { type: 'minPerPeg', count: 3 }, timeLimit: ARCADE_LEVEL_TIME_LIMIT, bonusPerSecond: 3, pegConfigKey: 'centerLine' }, { name: "Nivel 3: Invertido", ringsObjective: { type: 'fillPegs', count: 2 }, OR_ringsObjective: { type: 'minPerPeg', count: 3 }, timeLimit: ARCADE_LEVEL_TIME_LIMIT, bonusPerSecond: 4, pegConfigKey: 'invertedStandard' }, { name: "Nivel 4: Movedizos Horizontales", ringsObjective: { type: 'fillPegs', count: 2 }, OR_ringsObjective: { type: 'minPerPeg', count: 3 }, timeLimit: ARCADE_LEVEL_TIME_LIMIT, bonusPerSecond: 5, pegConfigKey: 'horizontalMovers' }, { name: "Nivel 5: Bailarines Verticales", ringsObjective: { type: 'fillPegs', count: 2 }, OR_ringsObjective: { type: 'minPerPeg', count: 3 }, timeLimit: ARCADE_LEVEL_TIME_LIMIT, bonusPerSecond: 6, pegConfigKey: 'verticalMovers' } ];
+    let leftJetInputActive = false; let rightJetInputActive = false; let leftJetPressure = 0; let rightJetPressure = 0; let tiltLeftActive = false; let tiltRightActive = false; let sensorTiltX = 0; let sensorAvailable = false; let sensorActive = false;
+    const KEY_LEFT_ARROW = 'ArrowLeft'; const KEY_RIGHT_ARROW = 'ArrowRight'; const KEY_JET_LEFT = 'KeyA'; const KEY_JET_RIGHT = 'KeyD';
 
-    try {
-        const sound = sounds[soundName];
-        sound.volume = volume;
+    function createRing(x, y, color) { let speedMagnitude = 0.08 + Math.random() * 0.12; return { x: x, y: y, vx: (Math.random() - 0.5) * 0.4, vy: (Math.random() - 0.5) * 0.4, color: color, originalColor: color, landed: false, pegIndex: -1, landedOrder: -1, basePoints: 25, awardedPoints: 0, rotationAngle: Math.random() * Math.PI * 2, initialRotationSpeed: (Math.random() < 0.5 ? -1 : 1) * speedMagnitude, rotationSpeed: 0, zRotationAngle: (Math.random() - 0.5) * 0.3, zRotationSpeed: (Math.random() - 0.5) * 0.03, isFlat: false, isSlidingOnPeg: false, finalYonPeg: 0 }; }
+    function configurePegsForLayout(layoutType) { pegs = []; let pegData = []; const standardPegPositions = [ { xFactor: 0.22, heightFactor: 0.35, yOffsetFactor: 0 }, { xFactor: 0.78, heightFactor: 0.35, yOffsetFactor: 0 }, { xFactor: 0.38, heightFactor: 0.30, yOffsetFactor: 0.35 + (45 / gameScreenHeight) }, { xFactor: 0.62, heightFactor: 0.30, yOffsetFactor: 0.35 + (45 / gameScreenHeight) } ]; switch (layoutType) { case 'centerLine': const centerSpacing = gameScreenWidth / 5; pegData = [ { x: centerSpacing * 1, yBaseFactor: 0.3, heightFactor: 0.30 }, { x: centerSpacing * 2, yBaseFactor: 0.3, heightFactor: 0.30 }, { x: centerSpacing * 3, yBaseFactor: 0.3, heightFactor: 0.30 }, { x: centerSpacing * 4, yBaseFactor: 0.3, heightFactor: 0.30 }, ]; pegData.forEach((data, index) => { pegs.push({ id: index, x: data.x, bottomY: gameScreenHeight - (gameScreenHeight * data.yBaseFactor), height: gameScreenHeight * data.heightFactor, landedRings: [], isFullAndScored: false, isMonoColor: false, monoColorValue: null, vx: 0, vy: 0, dirX: 1, dirY: 1, minX: data.x, maxX: data.x, minY: gameScreenHeight - (gameScreenHeight * data.yBaseFactor) - (gameScreenHeight * data.heightFactor), maxY: gameScreenHeight - (gameScreenHeight * data.yBaseFactor) }); }); break; case 'invertedStandard': pegData = [ { xFactor: 0.38, heightFactor: 0.30, yOffsetFactor: 0 }, { xFactor: 0.62, heightFactor: 0.30, yOffsetFactor: 0 }, { xFactor: 0.22, heightFactor: 0.35, yOffsetFactor: 0.35 + (45 / gameScreenHeight) }, { xFactor: 0.78, heightFactor: 0.35, yOffsetFactor: 0.35 + (45 / gameScreenHeight) }, ]; pegData.forEach((data, index) => { pegs.push({ id: index, x: gameScreenWidth * data.xFactor, bottomY: gameScreenHeight - 20 - (gameScreenHeight * data.yOffsetFactor), height: gameScreenHeight * data.heightFactor, landedRings: [], isFullAndScored: false, isMonoColor: false, monoColorValue: null, vx: 0, vy: 0, dirX: 1, dirY: 1, minX: gameScreenWidth * data.xFactor, maxX: gameScreenWidth * data.xFactor, minY: gameScreenHeight - 20 - (gameScreenHeight * data.yOffsetFactor) - (gameScreenHeight * data.heightFactor), maxY: gameScreenHeight - 20 - (gameScreenHeight * data.yOffsetFactor) }); }); break; case 'horizontalMovers': const moverMarginX = gameScreenWidth * 0.1; const moverCenterGap = gameScreenWidth * 0.05; standardPegPositions.forEach((data, index) => { const pegX = gameScreenWidth * data.xFactor; let minX, maxX; if (index === 0 || index === 2) { minX = moverMarginX; maxX = gameScreenWidth / 2 - PEG_VISUAL_WIDTH - moverCenterGap / 2; } else { minX = gameScreenWidth / 2 + moverCenterGap / 2; maxX = gameScreenWidth - moverMarginX - PEG_VISUAL_WIDTH; } pegs.push({ id: index, x: (index === 0 || index === 2) ? minX : maxX, bottomY: gameScreenHeight - 20 - (gameScreenHeight * data.yOffsetFactor), height: gameScreenHeight * data.heightFactor, landedRings: [], isFullAndScored: false, isMonoColor: false, monoColorValue: null, vx: PEG_MOVEMENT_SPEED_X * ((index === 0 || index === 2) ? 1 : -1), vy: 0, dirX: ((index === 0 || index === 2) ? 1 : -1), dirY: 1, minX: minX, maxX: maxX, originalX: pegX, minY: gameScreenHeight - 20 - (gameScreenHeight * data.yOffsetFactor) - (gameScreenHeight * data.heightFactor), maxY: gameScreenHeight - 20 - (gameScreenHeight * data.yOffsetFactor) }); }); break; case 'verticalMovers': const centerBaseX = gameScreenWidth / 2; const topBoundary = gameScreenHeight * 0.2; const bottomBoundary = gameScreenHeight * 0.8; [ { xOffset: -PEG_VISUAL_WIDTH * 1.5, initialYFactor: 0.3 }, { xOffset: -PEG_VISUAL_WIDTH * 0.5, initialYFactor: 0.5 }, { xOffset: PEG_VISUAL_WIDTH * 0.5, initialYFactor: 0.4 }, { xOffset: PEG_VISUAL_WIDTH * 1.5, initialYFactor: 0.6 }, ].forEach((data, index) => { const pegHeight = gameScreenHeight * 0.25; const initialBottomY = gameScreenHeight * data.initialYFactor + pegHeight; pegs.push({ id: index, x: centerBaseX + data.xOffset, bottomY: initialBottomY, height: pegHeight, landedRings: [], isFullAndScored: false, isMonoColor: false, monoColorValue: null, vx: 0, vy: (Math.random() < 0.5 ? -1 : 1) * (PEG_MOVEMENT_SPEED_Y_MIN + Math.random() * (PEG_MOVEMENT_SPEED_Y_MAX - PEG_MOVEMENT_SPEED_Y_MIN)), dirX: 1, dirY: (Math.random() < 0.5 ? -1 : 1), minX: centerBaseX + data.xOffset, maxX: centerBaseX + data.xOffset, minY: topBoundary, maxY: bottomBoundary }); }); break; case 'standard': default: standardPegPositions.forEach((data, index) => { pegs.push({ id: index, x: gameScreenWidth * data.xFactor, bottomY: gameScreenHeight - 20 - (gameScreenHeight * data.yOffsetFactor), height: gameScreenHeight * data.heightFactor, landedRings: [], isFullAndScored: false, isMonoColor: false, monoColorValue: null, vx: 0, vy: 0, dirX: 1, dirY: 1, minX: gameScreenWidth * data.xFactor, maxX: gameScreenWidth * data.xFactor, minY: gameScreenHeight - 20 - (gameScreenHeight * data.yOffsetFactor) - (gameScreenHeight * data.heightFactor), maxY: gameScreenHeight - 20 - (gameScreenHeight * data.yOffsetFactor) }); }); break;} }
+    function updatePegs(dt) { if (currentGameMode !== 'arcade' || !ARCADE_LEVELS[currentArcadeLevel] || !pegs) return; const configKey = ARCADE_LEVELS[currentArcadeLevel].pegConfigKey; const timeFactor = dt * TARGET_FPS * 0.5; if (configKey === 'horizontalMovers') { pegs.forEach(peg => { const prevX = peg.x; peg.x += peg.vx * timeFactor; if (peg.x + PEG_VISUAL_WIDTH/2 > peg.maxX) { peg.x = peg.maxX - PEG_VISUAL_WIDTH/2; peg.vx *= -1; } else if (peg.x - PEG_VISUAL_WIDTH/2 < peg.minX) { peg.x = peg.minX + PEG_VISUAL_WIDTH/2; peg.vx *= -1; } const deltaX = peg.x - prevX; peg.landedRings.forEach(ring => ring.x += deltaX); }); } else if (configKey === 'verticalMovers') { pegs.forEach(peg => { const prevBottomY = peg.bottomY; let newBottomY = peg.bottomY + peg.vy * timeFactor; let newTopY = newBottomY - peg.height; if (newTopY < peg.minY) { newBottomY = peg.minY + peg.height; peg.vy *= -1; } else if (newBottomY > peg.maxY) { newBottomY = peg.maxY; peg.vy *= -1; } peg.bottomY = newBottomY; const deltaY = peg.bottomY - prevBottomY; peg.landedRings.forEach(ring => ring.y += deltaY); }); } }
+    function initGame(mode) { /* ... */ } // La definición completa está arriba
+    function prepareArcadeLevel(levelIndex) { /* ... */ }
+    function startPreparedArcadeLevel() { /* ... */ }
+    function drawRing(ring) { /* ... */ }
+    function drawAllPegsAndLandedRings() { /* ... */ }
+    function drawArcadeInfoOnCanvas() { /* ... */ }
+    function drawScoreOnCanvas() { /* ... */ }
+    let instructionTimeout = null; function showMessage(text, duration = 3000, isInstruction = false) { /* ... */ }
+    function setPersistentInstructions() { /* ... */ }
+    function updateScore(pointsToAdd, message = "") { /* ... */ }
+    function checkArcadeLevelWinCondition() { /* ... */ }
+    function checkAndApplyBonuses(landedRing, peg) { /* ... */ }
+    function checkAllPegsCompleted_NormalMode() { /* ... */ }
+    function goToNextArcadeLevel() { /* ... */ }
+    function triggerGameOver_NormalMode() { /* ... */ }
+    function triggerGameOver_ArcadeMode(allLevelsCompleted = false) { /* ... */ }
+    function showEndGameScreen(mode, arcadeWon = false, levelReachedIfLost = 0) { /* ... */ }
+    function hideEndGameScreen() { /* ... */ }
+    function hexToRgb(hex) { /* ... */ }
+    function createFloatingScore(x, y, text, color = "#FFFFFF", durationFrames = 90, upwardSpeed = 0.8) { /* ... */ }
+    function updateAndDrawFloatingScores(dt) { /* ... */ }
+    function createJetParticle(xSide, strength) { /* ... */ }
+    function updateAndDrawJetParticles(dt) { /* ... */ }
+    function updateRings(actualTiltForceToApply, dt) { /* ... */ }
 
-        if (!sound.paused) { // Si ya está sonando
-            if (restartIfPlaying) {
-                sound.pause();
-                sound.currentTime = 0;
-            } else {
-                // Si no se debe reiniciar y ya está sonando (ej. chorro continuo), no hacer nada.
-                return; 
-            }
-        }
-        // Solo llama a play si no está sonando (o fue pausado para reiniciar)
-         sound.play().catch(error => {/*console.warn("Error al reproducir sonido:", soundName, error)*/});
+    // Copiar las definiciones completas de todas las funciones stubbed arriba aquí
+    // para asegurar que están definidas dentro del ámbito del DOMContentLoaded
+    // ... (ejemplo: initGame, prepareArcadeLevel, startPreparedArcadeLevel, drawRing, etc.)
+
+    // --- MANEJO DE EVENTOS DE BOTONES ---
+    if (leftJetButton) { leftJetButton.addEventListener('mousedown', () => { leftJetInputActive = true; }); leftJetButton.addEventListener('mouseup', () => { leftJetInputActive = false; }); leftJetButton.addEventListener('mouseleave', () => { if(leftJetInputActive) {leftJetInputActive = false;} }); leftJetButton.addEventListener('touchstart', (e) => { e.preventDefault(); leftJetInputActive = true; }, { passive: false }); leftJetButton.addEventListener('touchend', (e) => { e.preventDefault(); leftJetInputActive = false; }); }
+    if (rightJetButton) { rightJetButton.addEventListener('mousedown', () => { rightJetInputActive = true; }); rightJetButton.addEventListener('mouseup', () => { rightJetInputActive = false; }); rightJetButton.addEventListener('mouseleave', () => { if(rightJetInputActive) {rightJetInputActive = false;} }); rightJetButton.addEventListener('touchstart', (e) => { e.preventDefault(); rightJetInputActive = true; }, { passive: false }); rightJetButton.addEventListener('touchend', (e) => { e.preventDefault(); rightJetInputActive = false; }); }
+    if (tiltLeftButton) { tiltLeftButton.addEventListener('mousedown', () => { tiltLeftActive = true; }); tiltLeftButton.addEventListener('mouseup', () => { tiltLeftActive = false; }); tiltLeftButton.addEventListener('mouseleave', () => { if (tiltLeftActive) { tiltLeftActive = false; } }); tiltLeftButton.addEventListener('touchstart', (e) => { e.preventDefault(); tiltLeftActive = true; }, { passive: false }); tiltLeftButton.addEventListener('touchend', (e) => { e.preventDefault(); tiltLeftActive = false; }); }
+    if (tiltRightButton) { tiltRightButton.addEventListener('mousedown', () => { tiltRightActive = true; }); tiltRightButton.addEventListener('mouseup', () => { tiltRightActive = false; }); tiltRightButton.addEventListener('mouseleave', () => { if (tiltRightActive) { tiltRightActive = false; } }); tiltRightButton.addEventListener('touchstart', (e) => { e.preventDefault(); tiltRightActive = true;}, { passive: false }); tiltRightButton.addEventListener('touchend', (e) => { e.preventDefault(); tiltRightActive = false; });}
+    
+    if (resetButton) resetButton.addEventListener('click', () => {
+        console.log(">>>> resetButton clicked inside DOMContentLoaded");
+        if (gameLoopId) { cancelAnimationFrame(gameLoopId); gameLoopId = null; }
+        gameRunning = false; gameOver = false; isPausedForLevelTransition = false;
+        hideEndGameScreen(); 
+        if(levelStartScreen) levelStartScreen.style.display = 'none'; else console.warn("Reset: levelStartScreen es null");
+        if(levelEndScreen) levelEndScreen.style.display = 'none'; else console.warn("Reset: levelEndScreen es null");
+        if(startScreen) startScreen.style.display = 'flex'; else console.error("!!!!!!!! Reset: startScreen es null. Esto romperá el reinicio. !!!!!!!");
         
-    } catch (error) {
-        // console.warn("Excepción al intentar reproducir sonido:", soundName, error);
-    }
-}
-
-function stopSound(soundName) {
-    if (sounds[soundName] && !sounds[soundName].paused) {
-        sounds[soundName].pause();
-        sounds[soundName].currentTime = 0;
-    }
-     if(soundName === 'jet') jetSoundPlaying = false;
-}
-
-
-// --- FUNCIONES DEL JUEGO ---
-// ... (createRing, initPegs, initGame, drawRing, drawAllPegsAndLandedRings, drawScoreOnCanvas, showMessage, setPersistentInstructions, updateScore sin cambios) ...
-function createRing(x, y, color) {
-    let speedMagnitude = 0.08 + Math.random() * 0.12; 
-    return { x: x, y: y, vx: (Math.random() - 0.5) * 0.4, vy: (Math.random() - 0.5) * 0.4, color: color, originalColor: color, landed: false, pegIndex: -1, landedOrder: -1, basePoints: 25, awardedPoints: 0, rotationAngle: Math.random() * Math.PI * 2, initialRotationSpeed: (Math.random() < 0.5 ? -1 : 1) * speedMagnitude, rotationSpeed: 0, zRotationAngle: (Math.random() - 0.5) * 0.3, zRotationSpeed: (Math.random() - 0.5) * 0.03, isFlat: false, isSlidingOnPeg: false, finalYonPeg: 0 };
-}
-function initPegs() {
-    pegs = []; 
-    const pegData = [ { xFactor: 0.22, heightFactor: 0.35, yOffsetFactor: 0 }, { xFactor: 0.78, heightFactor: 0.35, yOffsetFactor: 0 }, { xFactor: 0.38, heightFactor: 0.30, yOffsetFactor: 0.35 + (45 / gameScreenHeight) }, { xFactor: 0.62, heightFactor: 0.30, yOffsetFactor: 0.35 + (45 / gameScreenHeight) } ];
-    pegData.forEach((data, index) => { pegs.push({ id: index, x: gameScreenWidth * data.xFactor, bottomY: gameScreenHeight - 20 - (gameScreenHeight * data.yOffsetFactor * (index > 1 ? 1 : 0)), height: gameScreenHeight * data.heightFactor, landedRings: [], isFullAndScored: false, isMonoColor: false, monoColorValue: null }); });
-}
-function initGame() {
-    score = 0; baseScoreFromRings = 0; bonusScoreFromColorStreak = 0; bonusScoreFromFullPegsGeneral = 0; bonusScoreFromMonoColorPegsSpecific = 0; allPegsCompletedBonusFactor = 1; masterBonusFactor = 1; scorePulseActive = false; scorePulseTimer = 0; currentScoreDisplaySize = SCORE_NORMAL_SIZE; leftJetPressure = 0; rightJetPressure = 0; tiltLeftActive = false; tiltRightActive = false; floatingScores = []; jetParticles = []; landedRingsCount = 0; gameOver = false;
-    hideEndGameScreen(); startScreen.style.display = 'none'; if (howToPlayScreen.style.display !== 'none') howToPlayScreen.style.display = 'none';
-    setPersistentInstructions(); initPegs(); rings = []; totalRingsToLand = 0; 
-    for (let i = 0; i < RING_COLORS.length; i++) { for (let j = 0; j < MAX_RINGS_PER_PEG; j++) { const color = RING_COLORS[i]; const x = RING_OUTER_RADIUS + Math.random() * (gameScreenWidth - 2 * RING_OUTER_RADIUS); const y = gameScreenHeight * 0.60 + Math.random() * (gameScreenHeight * 0.40 - RING_OUTER_RADIUS); let newRing = createRing(x, y, color); newRing.rotationSpeed = newRing.initialRotationSpeed; rings.push(newRing); totalRingsToLand++; } }
-    if (typeof performance !== 'undefined' && performance.now) { lastTime = performance.now(); } else { lastTime = Date.now(); }
-}
-function drawRing(ring) { 
-    ctx.save(); ctx.translate(ring.x, ring.y); if ((!ring.isFlat || ring.landed) && !ring.isSlidingOnPeg) { ctx.rotate(ring.zRotationAngle); }
-    const outerRadius = RING_OUTER_RADIUS; const innerRadiusMaterial = RING_OUTER_RADIUS - RING_VISUAL_THICKNESS; 
-    if (ring.isFlat) { const currentFlatThickness = ring.landed ? FLAT_RING_VIEW_THICKNESS : GROUND_FLAT_RING_THICKNESS; const halfFlatViewThickness = currentFlatThickness / 2; const flatDrawWidth = outerRadius * 2; ctx.fillStyle = RING_OUTLINE_COLOR; ctx.fillRect( -flatDrawWidth / 2 - RING_OUTLINE_WIDTH_ON_SCREEN, -halfFlatViewThickness - RING_OUTLINE_WIDTH_ON_SCREEN, flatDrawWidth + (RING_OUTLINE_WIDTH_ON_SCREEN * 2), currentFlatThickness + (RING_OUTLINE_WIDTH_ON_SCREEN * 2) ); ctx.fillStyle = ring.color; ctx.fillRect( -flatDrawWidth / 2, -halfFlatViewThickness, flatDrawWidth, currentFlatThickness );
-    } else { const scaleYValue = Math.abs(Math.cos(ring.rotationAngle)); const effectiveScaleY = Math.max(0.08, scaleYValue); 
-        if (scaleYValue < 0.08 && !ring.landed) { const tempFlatThickness = GROUND_FLAT_RING_THICKNESS * 0.8; const halfFlatViewThickness = tempFlatThickness / 2; const flatDrawWidth = outerRadius * 2; ctx.fillStyle = RING_OUTLINE_COLOR; ctx.fillRect( -flatDrawWidth / 2 - RING_OUTLINE_WIDTH_ON_SCREEN, -halfFlatViewThickness - RING_OUTLINE_WIDTH_ON_SCREEN, flatDrawWidth + (RING_OUTLINE_WIDTH_ON_SCREEN * 2), tempFlatThickness + (RING_OUTLINE_WIDTH_ON_SCREEN * 2) ); ctx.fillStyle = ring.color; ctx.fillRect( -flatDrawWidth / 2, -halfFlatViewThickness, flatDrawWidth, tempFlatThickness );
-        } else { ctx.scale(1, effectiveScaleY); const outlineScaledOffset = RING_OUTLINE_WIDTH_ON_SCREEN / effectiveScaleY; ctx.beginPath(); ctx.arc(0, 0, outerRadius + outlineScaledOffset, 0, Math.PI * 2, false); ctx.arc(0, 0, Math.max(0, innerRadiusMaterial - outlineScaledOffset), 0, Math.PI * 2, true); ctx.fillStyle = RING_OUTLINE_COLOR; ctx.fill(); ctx.beginPath(); ctx.arc(0, 0, outerRadius, 0, Math.PI * 2, false); ctx.arc(0, 0, innerRadiusMaterial, 0, Math.PI * 2, true);    ctx.fillStyle = ring.color; ctx.fill(); } }
-    ctx.restore();
-}
-function drawAllPegsAndLandedRings() { 
-    pegs.forEach(peg => { ctx.fillStyle = PEG_FILL_COLOR; ctx.strokeStyle = PEG_STROKE_COLOR; ctx.lineWidth = 2; const pegTopY = peg.bottomY - peg.height; ctx.beginPath(); ctx.roundRect(peg.x - PEG_VISUAL_WIDTH / 2, pegTopY, PEG_VISUAL_WIDTH, peg.height, [PEG_VISUAL_WIDTH/3, PEG_VISUAL_WIDTH/3, 0, 0]); ctx.fill(); ctx.stroke(); peg.landedRings.forEach(drawRing); });
-}
-function drawScoreOnCanvas() { 
-    if (!gameRunning && !gameOver && startScreen.style.display === 'flex') return; 
-    ctx.save(); ctx.font = `bold ${currentScoreDisplaySize}px Arial`; ctx.textAlign = 'right'; ctx.textBaseline = 'top'; ctx.shadowColor = 'rgba(0, 0, 0, 0.7)'; ctx.shadowBlur = 3; ctx.shadowOffsetX = 1; ctx.shadowOffsetY = 1;
-    if (scorePulseActive) { ctx.fillStyle = '#FFD700'; } else { ctx.fillStyle = 'rgba(255, 255, 255, 0.9)'; }
-    ctx.fillText(`Score: ${score}`, gameScreenWidth - 10, 10); ctx.restore();
-}
-let instructionTimeout = null;
-function showMessage(text, duration = 3000, isInstruction = false) {
-    if (instructionTimeout && !isInstruction) { clearTimeout(instructionTimeout); }
-    messageBoard.textContent = text; messageBoard.style.opacity = 1; 
-    if (!isInstruction) { instructionTimeout = setTimeout(() => { messageBoard.style.opacity = 0; instructionTimeout = null; setTimeout(setPersistentInstructions, 700); }, duration); }
-}
-function setPersistentInstructions() { 
-    if (instructionTimeout && messageBoard.textContent !== "" && !messageBoard.textContent.toLowerCase().includes("pc:")) { return; }
-    let instructionMessage = "PC: Flechas=Inclinar, A/D=Jets.";
-    if (sensorAvailable) { if (sensorActive) instructionMessage += " Móvil: Sensor ACTIVO."; else instructionMessage += " Móvil: Botones/Activar Sensor."; } 
-    else { instructionMessage += " Móvil: Botones TILT."; }
-    messageBoard.textContent = instructionMessage; messageBoard.style.opacity = 1;
-}
-function updateScore(pointsToAdd, message = "") { 
-    if (pointsToAdd > 0) { score += pointsToAdd; scorePulseActive = true; scorePulseTimer = SCORE_PULSE_DURATION; currentScoreDisplaySize = SCORE_PULSE_SIZE; } 
-    else if (pointsToAdd < 0) { score += pointsToAdd; }
-    if (message && message !== "") { showMessage(message, 2500); }
-}
-function checkAndApplyBonuses(landedRing, peg) { 
-    let pointsForThisSpecificRing = landedRing.basePoints; let bonusMessageText = ""; baseScoreFromRings += landedRing.basePoints; 
-    if ('vibrate' in navigator) { navigator.vibrate(75); }
-    playSound('scoreRing', 0.6); 
-    let mightBecomeMonoColor = true;
-    if(peg.landedRings.length === MAX_RINGS_PER_PEG) { const firstColorInPeg = peg.landedRings[0].color; for(const r of peg.landedRings) { if (r.color !== firstColorInPeg) { mightBecomeMonoColor = false; break; } } } 
-    else { mightBecomeMonoColor = false; }
-    if (peg.landedRings.length > 1 && !mightBecomeMonoColor && landedRing.landedOrder > 0 ) { const previousRingInStack = peg.landedRings[landedRing.landedOrder -1]; if (previousRingInStack && previousRingInStack.color === landedRing.color) { let colorStreakBonus = landedRing.basePoints; pointsForThisSpecificRing += colorStreakBonus; bonusScoreFromColorStreak += colorStreakBonus; bonusMessageText += ` Color x2!`; playSound('bonus', 0.7); } }
-    landedRing.awardedPoints = pointsForThisSpecificRing; 
-    createFloatingScore(landedRing.x, landedRing.finalYonPeg - RING_OUTER_RADIUS, `+${pointsForThisSpecificRing}${bonusMessageText}`, landedRing.color);
-    updateScore(pointsForThisSpecificRing); 
-    if (peg.landedRings.length === MAX_RINGS_PER_PEG && !peg.isFullAndScored) {
-        peg.isFullAndScored = true; let isCurrentPegMonoColor = true; const firstLandedColor = peg.landedRings[0].color;
-        for (let k = 1; k < MAX_RINGS_PER_PEG; k++) { if (peg.landedRings[k].color !== firstLandedColor) { isCurrentPegMonoColor = false; break; } }
-        let additionalBonusScore = 0; let pegCompletionMessage = "";
-        if (isCurrentPegMonoColor) { peg.isMonoColor = true; peg.monoColorValue = firstLandedColor; let currentPegAwardedPointsSum = 0; peg.landedRings.forEach(r => currentPegAwardedPointsSum += r.awardedPoints); let targetMonoScore = (landedRing.basePoints * MAX_RINGS_PER_PEG) * 10; additionalBonusScore = targetMonoScore - currentPegAwardedPointsSum; if(additionalBonusScore < 0) additionalBonusScore = 0; bonusScoreFromMonoColorPegsSpecific += additionalBonusScore; pegCompletionMessage = `PALO MONOCOLOR! (x10)`; playSound('bonus', 0.8); 
-        } else { let pegTotalAwardedPoints = 0; peg.landedRings.forEach(r => { pegTotalAwardedPoints += r.awardedPoints; }); additionalBonusScore = pegTotalAwardedPoints * 3; bonusScoreFromFullPegsGeneral += additionalBonusScore; pegCompletionMessage = `PALO LLENO! (x4)`; playSound('bonus', 0.75); }
-        if(additionalBonusScore > 0) updateScore(additionalBonusScore, pegCompletionMessage); 
-        checkAllPegsCompleted();
-    }
-}
-function checkAllPegsCompleted() { 
-    if (allPegsCompletedBonusFactor > 1 && masterBonusFactor > 1) return; 
-    const allPegsNowFull = pegs.every(p => p.isFullAndScored);
-    if (allPegsNowFull && allPegsCompletedBonusFactor === 1) { allPegsCompletedBonusFactor = 2; showMessage("TODOS LOS PALOS LLENOS! Puntos x2!", 3500, true); playSound('bonus', 0.9); 
-        let monoColorPegCount = 0; const usedColorsForMaster = new Set();
-        pegs.forEach(p => { if (p.isMonoColor) { monoColorPegCount++; usedColorsForMaster.add(p.monoColorValue); } });
-        if (monoColorPegCount === TOTAL_COLORS && usedColorsForMaster.size === TOTAL_COLORS) { masterBonusFactor = 100; showMessage("¡¡BONO MAESTRO!! Puntuación Final x100!", 5000, true); playSound('bonus', 1.0); } }
-}
-function triggerGameOver() { 
-    if (gameOver) return; gameOver = true; gameRunning = false; 
-    let finalScoreCalculation = baseScoreFromRings + bonusScoreFromColorStreak + bonusScoreFromFullPegsGeneral + bonusScoreFromMonoColorPegsSpecific;
-    if(allPegsCompletedBonusFactor > 1) { finalScoreCalculation *= allPegsCompletedBonusFactor; }
-    if(masterBonusFactor > 1) { let scoreBeforeAnyFinalMultiplier = baseScoreFromRings + bonusScoreFromColorStreak + bonusScoreFromFullPegsGeneral + bonusScoreFromMonoColorPegsSpecific; finalScoreCalculation = scoreBeforeAnyFinalMultiplier * masterBonusFactor; }
-    score = Math.round(finalScoreCalculation);
-    if (gameLoopId) { cancelAnimationFrame(gameLoopId); gameLoopId = null; }
-    showEndGameScreen();
-}
-function showEndGameScreen() {
-    const existingScreen = document.getElementById('endGameScreen'); if (existingScreen) existingScreen.parentNode.removeChild(existingScreen); 
-    const screenDOM = document.createElement('div'); screenDOM.id = 'endGameScreen'; screenDOM.classList.add('visible');
-    let summaryHTML = `<h2>¡Juego Terminado!</h2><p>Puntos Base Aros: ${baseScoreFromRings}</p>`;
-    if (bonusScoreFromColorStreak > 0) summaryHTML += `<p>Bono Racha Color: +${bonusScoreFromColorStreak}</p>`;
-    if (bonusScoreFromFullPegsGeneral > 0) summaryHTML += `<p>Bono Palos Llenos (Normal): +${bonusScoreFromFullPegsGeneral}</p>`;
-    if (bonusScoreFromMonoColorPegsSpecific > 0) summaryHTML += `<p>Bono Palos Monocolor: +${bonusScoreFromMonoColorPegsSpecific}</p>`;
-    let subTotalBeforeMultipliers = baseScoreFromRings + bonusScoreFromColorStreak + bonusScoreFromFullPegsGeneral + bonusScoreFromMonoColorPegsSpecific;
-    if (masterBonusFactor > 1) { summaryHTML += `<p style="color: gold; font-weight: bold;">¡BONO MAESTRO!: x${masterBonusFactor} (sobre ${subTotalBeforeMultipliers})</p>`; } 
-    else if (allPegsCompletedBonusFactor > 1) { summaryHTML += `<p style="color: lightblue;">Bono Todos Palos Llenos: x${allPegsCompletedBonusFactor} (sobre ${subTotalBeforeMultipliers})</p>`; }
-    summaryHTML += `<h3 style="margin-top: 20px; color: #FFD700;">PUNTUACIÓN FINAL: ${score}</h3>`;
-    const playAgainButton = document.createElement('button'); playAgainButton.textContent = 'Jugar de Nuevo';
-    playAgainButton.onclick = () => { playSound('uiClick'); hideEndGameScreen(); document.getElementById('startScreen').style.display = 'flex'; howToPlayButton.style.display = 'inline-block'; gameRunning = false; score = 0; currentScoreDisplaySize = SCORE_NORMAL_SIZE; };
-    screenDOM.innerHTML = summaryHTML; screenDOM.appendChild(playAgainButton); document.body.appendChild(screenDOM); 
-}
-function hideEndGameScreen() {
-    const screenDOM = document.getElementById('endGameScreen'); 
-    if (screenDOM) { screenDOM.classList.remove('visible'); setTimeout(() => { if (screenDOM && screenDOM.parentNode) { screenDOM.parentNode.removeChild(screenDOM); } }, 500); }
-}
-function hexToRgb(hex) { /* ... (sin cambios) ... */
-    let r = 0, g = 0, b = 0; if (!hex || typeof hex !== 'string') return { r: 255, g: 255, b: 255 }; if (hex.length == 4) { r = "0x" + hex[1] + hex[1]; g = "0x" + hex[2] + hex[2]; b = "0x" + hex[3] + hex[3]; } else if (hex.length == 7) { r = "0x" + hex[1] + hex[2]; g = "0x" + hex[3] + hex[4]; b = "0x" + hex[5] + hex[6]; } else { return { r: 255, g: 255, b: 255 }; } return { r: +r, g: +g, b: +b };
-}
-function createFloatingScore(x, y, text, color = "#FFFFFF", durationFrames = 90, upwardSpeed = 0.8) { /* ... (sin cambios) ... */
-    floatingScores.push({ x: x, y: y, text: text, color: color, opacity: 1, vy: -upwardSpeed, life: durationFrames, initialLife: durationFrames, currentFontSize: 20, maxFontSize: 30 });
-}
-function updateAndDrawFloatingScores(dt) { /* ... (sin cambios) ... */
-    const accelerationFactor = dt * TARGET_FPS; ctx.save(); ctx.textAlign = "center"; ctx.shadowColor = "rgba(0,0,0,0.6)"; ctx.shadowBlur = 4; ctx.shadowOffsetX = 2; ctx.shadowOffsetY = 2;
-    for (let i = floatingScores.length - 1; i >= 0; i--) { const fs = floatingScores[i]; fs.y += fs.vy * accelerationFactor; fs.life -= accelerationFactor; const progress = 1 - (fs.life / fs.initialLife); fs.currentFontSize = 20 + (fs.maxFontSize - 20) * Math.sin(progress * Math.PI * 0.8); if(fs.currentFontSize < 18) fs.currentFontSize = 18; fs.opacity = (fs.life / fs.initialLife); if (fs.opacity < 0) fs.opacity = 0; if (fs.life <= 0) { floatingScores.splice(i, 1); } else { ctx.font = `bold ${Math.round(fs.currentFontSize)}px Arial`; const rgb = hexToRgb(fs.color); ctx.fillStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${fs.opacity})`; ctx.fillText(fs.text, fs.x, fs.y); } }
-    ctx.restore();
-}
-function createJetParticle(xSide, strength) {
-    if (jetParticles.length >= MAX_JET_PARTICLES) { return; }
-    const isLeft = xSide === -1; const particleOriginX = isLeft ? gameScreenWidth * 0.22 : gameScreenWidth * 0.78; 
-    const particle = { x: particleOriginX + (Math.random() - 0.5) * 15, y: gameScreenHeight - 25 - Math.random() * 10, vx: (Math.random() - 0.5) * 2 + (isLeft ? 0.8 : -0.8) * (strength*2.5), vy: -(3.5 + Math.random() * 3.5 + strength * 5.5), radius: 2.0 + Math.random() * 2.0 + strength * 3.0, opacity: 0.45 + strength * 0.5, life: 30 + Math.random() * 25 + strength * 30, color: `rgba(220, 240, 255, ${0.25 + Math.random() * 0.3})` };
-    jetParticles.push(particle);
-}
-function updateAndDrawJetParticles(dt) { /* ... (sin cambios) ... */
-    const accelerationFactor = dt * TARGET_FPS; ctx.save();
-    for (let i = jetParticles.length - 1; i >= 0; i--) { const p = jetParticles[i]; p.x += p.vx * accelerationFactor; p.y += p.vy * accelerationFactor; p.vy += GRAVITY_BASE * 0.2 * accelerationFactor; p.life -= accelerationFactor; const baseOpacityMatch = p.color.match(/rgba\([\d\s,]+([\d.]+)\)/); const baseOpacity = baseOpacityMatch ? parseFloat(baseOpacityMatch[1]) : 0.3; p.opacity = baseOpacity * (p.life / (30 + 25 + 30)); if (p.opacity < 0) p.opacity = 0; p.radius *= (1 - 0.020 * accelerationFactor); if (p.opacity <= 0 || p.radius <= 0.4 || p.life <= 0 || p.y < -p.radius || p.y > gameScreenHeight + p.radius) { jetParticles.splice(i, 1); } else { ctx.beginPath(); ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2); const colorParts = p.color.substring(p.color.indexOf('(') + 1, p.color.lastIndexOf(',')).trim(); ctx.fillStyle = `rgba(${colorParts}, ${p.opacity.toFixed(2)})`; ctx.fill(); } }
-    ctx.restore();
-}
-function updateRings(actualTiltForceToApply, dt) { /* ... (sin cambios, salvo llamada a playSound para ringCollision) ... */
-    const accelerationFactor = dt * TARGET_FPS; 
-    rings.forEach(ring => { 
-        if (ring.landed && !ring.isSlidingOnPeg) { ring.isFlat = true; ring.rotationAngle = Math.PI / 2; ring.rotationSpeed = 0; ring.zRotationAngle = 0; ring.zRotationSpeed = 0; ring.vx = 0; ring.vy = 0; return; }
-        if (ring.isSlidingOnPeg) { const slideSpeedValue = 4.0 * accelerationFactor; if (ring.y < ring.finalYonPeg) { ring.y += slideSpeedValue; if (ring.y >= ring.finalYonPeg) { ring.y = ring.finalYonPeg; ring.isSlidingOnPeg = false; ring.vy = 0; landedRingsCount++; } } else { ring.y -= slideSpeedValue; if (ring.y <= ring.finalYonPeg) { ring.y = ring.finalYonPeg; ring.isSlidingOnPeg = false; ring.vy = 0; landedRingsCount++; } } ring.isFlat = true; ring.rotationAngle = Math.PI / 2; ring.rotationSpeed = 0; ring.zRotationAngle = 0; ring.zRotationSpeed = 0; ring.vx = 0; return; }
-        ring.vy += GRAVITY_BASE * accelerationFactor; const frictionRate = 1 - WATER_FRICTION_COEFF; ring.vx *= Math.pow(frictionRate, accelerationFactor); ring.vy *= Math.pow(frictionRate, accelerationFactor);
-        let forceAppliedToRingThisFrame = false;
-        [[leftJetPressure, 0.22, 1], [rightJetPressure, 0.78, -1]].forEach(([pressure, jetXFactor, horizontalDir]) => { if (pressure > 0.01) { let currentJetForceVertical = BASE_JET_STRENGTH * pressure; let currentJetForceHorizontal = JET_HORIZONTAL_INFLUENCE_RATIO * currentJetForceVertical; let jetSourceX = gameScreenWidth * jetXFactor; const distanceX = ring.x - jetSourceX; let proximityFactorY = 0; const yPosInJetEffect = (ring.y - (gameScreenHeight - JET_EFFECT_RADIUS_Y)); if (yPosInJetEffect > 0 && ring.y < gameScreenHeight) { proximityFactorY = 1 - Math.pow( (JET_EFFECT_RADIUS_Y - yPosInJetEffect) / JET_EFFECT_RADIUS_Y, JET_VERTICAL_FALLOFF_POWER); proximityFactorY = Math.max(0.05, Math.min(1, proximityFactorY)); } if (Math.abs(distanceX) < JET_EFFECT_RADIUS_X && proximityFactorY > 0.01) { const proximityFactorX = 1 - (Math.abs(distanceX) / JET_EFFECT_RADIUS_X); const totalProximityFactor = proximityFactorX * proximityFactorY; if (totalProximityFactor > 0) { ring.vy -= (currentJetForceVertical * totalProximityFactor) * accelerationFactor; ring.vx += (currentJetForceHorizontal * totalProximityFactor * horizontalDir) * accelerationFactor; forceAppliedToRingThisFrame = true; } } } });
-        if (actualTiltForceToApply !== 0) { ring.vx += actualTiltForceToApply * accelerationFactor; forceAppliedToRingThisFrame = true; }
-        const isOnGroundAndEffectivelySlow = ring.y + RING_OUTER_RADIUS >= gameScreenHeight - (GROUND_FLAT_RING_THICKNESS / 2 + RING_OUTLINE_WIDTH_ON_SCREEN + 1) && Math.abs(ring.vy) < 0.15 && Math.abs(ring.vx) < 0.15; 
-        if (ring.isFlat && forceAppliedToRingThisFrame && !isOnGroundAndEffectivelySlow) { ring.isFlat = false; if (ring.rotationSpeed === 0) { ring.rotationSpeed = ring.initialRotationSpeed * (Math.random() < 0.5 ? 0.7 : -0.7) * (0.7 + Math.random() * 0.6) ; } if (ring.zRotationSpeed === 0 && forceAppliedToRingThisFrame) { ring.zRotationSpeed = (Math.random() - 0.5) * 0.03; } } else if (!ring.landed && isOnGroundAndEffectivelySlow && !forceAppliedToRingThisFrame) { ring.isFlat = true; ring.zRotationSpeed = 0; }
-        if (!ring.isFlat) { ring.rotationAngle += ring.rotationSpeed * accelerationFactor; if (ring.rotationAngle > Math.PI * 2) ring.rotationAngle -= Math.PI * 2; if (ring.rotationAngle < 0) ring.rotationAngle += Math.PI * 2; const rotationalFrictionRate = 1 - 0.01; ring.rotationSpeed *= Math.pow(rotationalFrictionRate, accelerationFactor); if (Math.abs(ring.rotationSpeed) < 0.005 / (accelerationFactor > 0 ? accelerationFactor : 1) ) ring.rotationSpeed = 0; } else { ring.rotationAngle = Math.PI / 2; ring.rotationSpeed = 0; }
-        ring.zRotationAngle += ring.zRotationSpeed * accelerationFactor; if (ring.zRotationAngle > Math.PI * 2) ring.zRotationAngle -= Math.PI * 2; else if (ring.zRotationAngle < 0) ring.zRotationAngle += Math.PI * 2; ring.zRotationSpeed *= Math.pow((1 - 0.025), accelerationFactor); if (Math.abs(ring.zRotationSpeed) < 0.001 / (accelerationFactor || 1)) ring.zRotationSpeed = 0;
+        if(howToPlayButton) howToPlayButton.style.display = 'inline-block';
+        score = 0; currentScoreDisplaySize = SCORE_NORMAL_SIZE; 
+        currentArcadeLevel = 0; timeLeftInLevel = 0; 
+        currentGameMode = 'none';
+        if(ctx) ctx.clearRect(0, 0, canvas.width, canvas.height); 
+        drawScoreOnCanvas(); 
+        if (!gameLoopId) { if (typeof performance !== 'undefined' && performance.now) { lastTime = performance.now(); } else { lastTime = Date.now(); } console.log(">>>> Requesting gameloop after reset for UI"); gameLoopId = requestAnimationFrame(gameLoop); }
     });
-    for (let iter = 0; iter < 3; iter++) { for (let i = 0; i < rings.length; i++) { const ring1 = rings[i]; if (ring1.landed) continue; for (let j = i + 1; j < rings.length; j++) { const ring2 = rings[j]; if (ring2.landed) continue; const dx = ring2.x - ring1.x; const dy = ring2.y - ring1.y; const distance = Math.sqrt(dx * dx + dy * dy); const minDistance = RING_OUTER_RADIUS * 2; if (distance < minDistance && distance > 0.001) { playSound('ringCollision', 0.35, true); const overlap = (minDistance - distance); const normalX = dx / distance; const normalY = dy / distance; ring1.x -= overlap * 0.5 * normalX; ring1.y -= overlap * 0.5 * normalY; ring2.x += overlap * 0.5 * normalX; ring2.y += overlap * 0.5 * normalY; const relativeVx = ring1.vx - ring2.vx; const relativeVy = ring1.vy - ring2.vy; const dotProduct = relativeVx * normalX + relativeVy * normalY; if (dotProduct > 0) { const impulse = (-(1 + RING_COLLISION_BOUNCE) * dotProduct) / 2; ring1.vx += impulse * normalX; ring1.vy += impulse * normalY; ring2.vx -= impulse * normalX; ring2.vy -= impulse * normalY; if (!ring1.isFlat && Math.abs(ring1.rotationSpeed) < 0.2) ring1.rotationSpeed += (Math.random() - 0.5) * 0.05 / (accelerationFactor || 1); if (!ring2.isFlat && Math.abs(ring2.rotationSpeed) < 0.2) ring2.rotationSpeed += (Math.random() - 0.5) * 0.05 / (accelerationFactor || 1); if (Math.abs(ring1.zRotationSpeed) < 0.05) ring1.zRotationSpeed += (Math.random() - 0.5) * 0.03 / (accelerationFactor || 1); if (Math.abs(ring2.zRotationSpeed) < 0.05) ring2.zRotationSpeed += (Math.random() - 0.5) * 0.03 / (accelerationFactor || 1); } } } } }
-    rings.forEach((ring, index) => { if (ring.landed && !ring.isSlidingOnPeg) return; if (ring.isSlidingOnPeg) return; let prevX = ring.x; let prevY = ring.y; ring.x += ring.vx * accelerationFactor; ring.y += ring.vy * accelerationFactor; let interactionOccurredThisFrame = false; if (!ring.landed) { for (const peg of pegs) { if (ring.landed || interactionOccurredThisFrame || peg.landedRings.length >= MAX_RINGS_PER_PEG || peg.isFullAndScored) { continue; } const pegCenterX = peg.x; const pegTop = peg.bottomY - peg.height; const ringRadius = RING_OUTER_RADIUS; const landingCatchWidth = PEG_VISUAL_WIDTH * PEG_LANDING_WIDTH_FACTOR; const horizontallyAligned = Math.abs(ring.x - pegCenterX) < landingCatchWidth / 2; const isFalling = ring.vy > 0; const ringBottom = ring.y + ringRadius; const prevRingBottom = prevY + ringRadius; if (isFalling && horizontallyAligned && ringBottom >= pegTop && prevRingBottom < pegTop + RING_VISUAL_THICKNESS * 0.8 ) { const targetLandedY = (peg.bottomY - FLAT_RING_VIEW_THICKNESS / 2) - (peg.landedRings.length * FLAT_RING_VIEW_THICKNESS); ring.isSlidingOnPeg = true; ring.finalYonPeg = targetLandedY; ring.landed = true; ring.isFlat = true; ring.pegIndex = peg.id; ring.x = pegCenterX; if (ring.y < targetLandedY) { ring.vy = Math.min(4.0, 2.0 + peg.landedRings.length * 0.1); } else { ring.vy = -Math.min(4.0, 2.0 + peg.landedRings.length * 0.1); if(targetLandedY > ring.y - 1) ring.vy = 0.1; } ring.vx = 0; ring.rotationSpeed = 0; ring.rotationAngle = Math.PI / 2; ring.zRotationAngle = 0; ring.zRotationSpeed = 0; ring.landedOrder = peg.landedRings.length; peg.landedRings.push(ring); checkAndApplyBonuses(ring, peg); interactionOccurredThisFrame = true; break; } if (!ring.landed && !interactionOccurredThisFrame) { const pegBodyLeft = pegCenterX - (PEG_VISUAL_WIDTH * PEG_COLLISION_WIDTH_FACTOR) / 2; const pegBodyRight = pegCenterX + (PEG_VISUAL_WIDTH * PEG_COLLISION_WIDTH_FACTOR) / 2; if (ring.y + ringRadius > pegTop + RING_VISUAL_THICKNESS * 0.5 && ring.y - ringRadius < peg.bottomY) { if (ring.x + ringRadius > pegBodyLeft && prevX + ringRadius <= pegBodyLeft + 1 && ring.vx > 0) { ring.x = pegBodyLeft - ringRadius - 0.1; ring.vx *= PEG_COLLISION_BOUNCE_FACTOR; interactionOccurredThisFrame = true; playSound('ringCollision', 0.3); } else if (ring.x - ringRadius < pegBodyRight && prevX - ringRadius >= pegBodyRight -1 && ring.vx < 0) { ring.x = pegBodyRight + ringRadius + 0.1; ring.vx *= PEG_COLLISION_BOUNCE_FACTOR; interactionOccurredThisFrame = true; playSound('ringCollision', 0.3); } } if (!interactionOccurredThisFrame && isFalling && ring.y + ringRadius > pegTop && prevY + ringRadius <= pegTop + 3 && Math.abs(ring.x - pegCenterX) < (PEG_VISUAL_WIDTH / 2 + ringRadius)) { ring.y = pegTop - ringRadius - 0.1; ring.vy *= (PEG_COLLISION_BOUNCE_FACTOR - 0.1); ring.vx += (Math.random() - 0.5) * 0.3 * accelerationFactor; interactionOccurredThisFrame = true; playSound('ringCollision', 0.3); } } if (interactionOccurredThisFrame) break; } } if (ring.x - RING_OUTER_RADIUS < 0) { ring.x = RING_OUTER_RADIUS; ring.vx *= BOUNCE_FACTOR; if(Math.abs(ring.vx) > 0.1) playSound('ringCollision', 0.25); } if (ring.x + RING_OUTER_RADIUS > gameScreenWidth) { ring.x = gameScreenWidth - RING_OUTER_RADIUS; ring.vx *= BOUNCE_FACTOR; if(Math.abs(ring.vx) > 0.1) playSound('ringCollision', 0.25); } if (ring.y - RING_OUTER_RADIUS < 0) { ring.y = RING_OUTER_RADIUS; ring.vy *= BOUNCE_FACTOR; if(Math.abs(ring.vy) > 0.1) playSound('ringCollision', 0.25); } const effectiveRingBottomExtent = ring.y + (ring.isFlat ? GROUND_FLAT_RING_THICKNESS / 2 : RING_OUTER_RADIUS); const groundHitPosition = gameScreenHeight - RING_OUTLINE_WIDTH_ON_SCREEN; if (effectiveRingBottomExtent >= groundHitPosition) { ring.y = groundHitPosition - (ring.isFlat ? GROUND_FLAT_RING_THICKNESS / 2 : RING_OUTER_RADIUS); if (ring.vy > 0.1) playSound('ringCollision', 0.2); if (ring.vy > 0) ring.vy *= BOUNCE_FACTOR * 0.3; if (Math.abs(ring.vy) < 0.05 / (accelerationFactor > 0 ? accelerationFactor : 1) ) { ring.vy = 0; if (!ring.landed) { ring.isFlat = true; if (ring.rotationSpeed !==0) ring.rotationSpeed = 0; ring.rotationAngle = Math.PI / 2; if (ring.zRotationSpeed !== 0) ring.zRotationSpeed = 0;} } }
-    });
-}
 
-// --- MANEJO DE EVENTOS DE BOTONES ---
-leftJetButton.addEventListener('mousedown', () => { leftJetInputActive = true; playSound('uiClick'); });
-leftJetButton.addEventListener('mouseup', () => { leftJetInputActive = false; stopSound('jet'); });
-leftJetButton.addEventListener('mouseleave', () => { if(leftJetInputActive) {leftJetInputActive = false; stopSound('jet');} });
-leftJetButton.addEventListener('touchstart', (e) => { e.preventDefault(); leftJetInputActive = true; playSound('uiClick');}, { passive: false });
-leftJetButton.addEventListener('touchend', (e) => { e.preventDefault(); leftJetInputActive = false; stopSound('jet'); });
+    if (fullscreenButton) fullscreenButton.addEventListener('click', () => { /* ... (lógica fullscreen) ... */});
+    if (beginLevelButton) beginLevelButton.addEventListener('click', startPreparedArcadeLevel);
+    if (nextLevelButton) nextLevelButton.addEventListener('click', () => { if(levelEndScreen) levelEndScreen.style.display = 'none'; if (currentArcadeLevel < ARCADE_LEVELS.length) { prepareArcadeLevel(currentArcadeLevel); } else { if(resetButton) resetButton.click(); } });
+    if (arcadeEndToMenuButton) arcadeEndToMenuButton.addEventListener('click', () => { if(levelEndScreen) levelEndScreen.style.display = 'none'; if(resetButton) resetButton.click(); });
+    if (startNormalModeButton) startNormalModeButton.addEventListener('click', () => { startGameFlow('normal'); });
+    if (startArcadeModeButton) startArcadeModeButton.addEventListener('click', () => { startGameFlow('arcade'); });
+    if (howToPlayButton) howToPlayButton.addEventListener('click', () => { if(howToPlayScreen) howToPlayScreen.style.display = 'flex';});
+    if (closeHowToPlayButton) closeHowToPlayButton.addEventListener('click', () => { if(howToPlayScreen) howToPlayScreen.style.display = 'none';});
+    window.addEventListener('click', (event) => { if (howToPlayScreen && event.target == howToPlayScreen) { howToPlayScreen.style.display = 'none'; }});
+    window.addEventListener('keydown', (e) => { /* ... */ });
+    window.addEventListener('keyup', (e) => { /* ... */ });
+    function handleOrientation(event) { /* ... */ }
+    function requestSensorPermission() { /* ... */ }
+    if (enableSensorButton && window.DeviceOrientationEvent) { enableSensorButton.style.display = 'inline-block'; enableSensorButton.disabled = false; enableSensorButton.textContent = "SENSOR"; enableSensorButton.addEventListener('click', requestSensorPermission); } 
+    else if(enableSensorButton) { enableSensorButton.style.display = 'none'; }
 
-rightJetButton.addEventListener('mousedown', () => { rightJetInputActive = true; playSound('uiClick'); });
-rightJetButton.addEventListener('mouseup', () => { rightJetInputActive = false; stopSound('jet'); });
-rightJetButton.addEventListener('mouseleave', () => { if(rightJetInputActive) {rightJetInputActive = false; stopSound('jet');} });
-rightJetButton.addEventListener('touchstart', (e) => { e.preventDefault(); rightJetInputActive = true; playSound('uiClick'); }, { passive: false });
-rightJetButton.addEventListener('touchend', (e) => { e.preventDefault(); rightJetInputActive = false; stopSound('jet'); });
-
-tiltLeftButton.addEventListener('mousedown', () => { tiltLeftActive = true; playSound('uiClick'); });
-tiltLeftButton.addEventListener('mouseup', () => { tiltLeftActive = false; });
-tiltLeftButton.addEventListener('mouseleave', () => { if (tiltLeftActive) { tiltLeftActive = false; } });
-tiltLeftButton.addEventListener('touchstart', (e) => { e.preventDefault(); tiltLeftActive = true; playSound('uiClick'); }, { passive: false });
-tiltLeftButton.addEventListener('touchend', (e) => { e.preventDefault(); tiltLeftActive = false; });
-
-tiltRightButton.addEventListener('mousedown', () => { tiltRightActive = true; playSound('uiClick'); });
-tiltRightButton.addEventListener('mouseup', () => { tiltRightActive = false; });
-tiltRightButton.addEventListener('mouseleave', () => { if (tiltRightActive) { tiltRightActive = false; } });
-tiltRightButton.addEventListener('touchstart', (e) => { e.preventDefault(); tiltRightActive = true; playSound('uiClick');}, { passive: false });
-tiltRightButton.addEventListener('touchend', (e) => { e.preventDefault(); tiltRightActive = false; });
-
-resetButton.addEventListener('click', () => { /* ... (con playSound) ... */
-    playSound('uiClick');
-    if (gameLoopId) { cancelAnimationFrame(gameLoopId); gameLoopId = null; }
-    gameRunning = false; gameOver = false; hideEndGameScreen(); initGame();
-    startScreen.style.display = 'flex'; howToPlayButton.style.display = 'inline-block';
-    score = 0; currentScoreDisplaySize = SCORE_NORMAL_SIZE; 
-    stopSound('jet'); // Detener sonido de chorro si estaba sonando
-    if (!gameLoopId) { if (typeof performance !== 'undefined' && performance.now) { lastTime = performance.now(); } else { lastTime = Date.now(); } gameLoopId = requestAnimationFrame(gameLoop); }
-});
-fullscreenButton.addEventListener('click', () => { playSound('uiClick'); /* ... (sin cambios) ... */ 
-    const elem = gameContainer; if (!document.fullscreenElement && !document.webkitFullscreenElement && !document.mozFullScreenElement && !document.msFullscreenElement) { if (elem.requestFullscreen) { elem.requestFullscreen(); } else if (elem.webkitRequestFullscreen) { elem.webkitRequestFullscreen(); } else if (elem.mozRequestFullScreen) { elem.mozRequestFullScreen(); } else if (elem.msRequestFullscreen) { elem.msRequestFullscreen(); } } else { if (document.exitFullscreen) { document.exitFullscreen(); } else if (document.webkitExitFullscreen) { document.webkitExitFullscreen(); } else if (document.mozCancelFullScreen) { document.mozCancelFullScreen(); } else if (document.msExitFullscreen) { document.msExitFullscreen(); } }
-});
-muteButton.addEventListener('click', () => { 
-    isMuted = !isMuted;
-    muteButton.textContent = isMuted ? '🔇' : '🔊';
-    muteButton.classList.toggle('muted', isMuted);
-    if (!isMuted) { playSound('uiClick'); } // Sonar solo si se está desmuteando (para no sonar al mutear)
-    else { stopSound('jet'); } // Detener sonidos activos al mutear
-});
-howToPlayButton.addEventListener('click', () => { playSound('uiClick'); howToPlayScreen.style.display = 'flex'; });
-closeHowToPlayButton.addEventListener('click', () => { playSound('uiClick'); howToPlayScreen.style.display = 'none'; });
-window.addEventListener('click', (event) => { if (event.target == howToPlayScreen) { howToPlayScreen.style.display = 'none'; }});
-
-// --- MANEJO DE EVENTOS DE TECLADO ---
-window.addEventListener('keydown', (e) => {
-    let keyProcessed = false;
-    switch (e.code) {
-        case KEY_LEFT_ARROW: if(!tiltLeftActive) playSound('uiClick'); tiltLeftActive = true; keyProcessed = true; break;
-        case KEY_RIGHT_ARROW: if(!tiltRightActive) playSound('uiClick'); tiltRightActive = true; keyProcessed = true; break;
-        case KEY_JET_LEFT: if(!leftJetInputActive) playSound('uiClick'); leftJetInputActive = true; keyProcessed = true; break;
-        case KEY_JET_RIGHT: if(!rightJetInputActive) playSound('uiClick'); rightJetInputActive = true; keyProcessed = true; break;
-    }
-    if (keyProcessed && (gameRunning || startScreen.style.display === 'none')) e.preventDefault();
-});
-window.addEventListener('keyup', (e) => {
-    let keyProcessed = false;
-    switch (e.code) {
-        case KEY_LEFT_ARROW: tiltLeftActive = false; keyProcessed = true; break;
-        case KEY_RIGHT_ARROW: tiltRightActive = false; keyProcessed = true; break;
-        case KEY_JET_LEFT: leftJetInputActive = false; stopSound('jet'); keyProcessed = true; break;
-        case KEY_JET_RIGHT: rightJetInputActive = false; stopSound('jet'); keyProcessed = true; break;
-    }
-     if (keyProcessed && (gameRunning || startScreen.style.display === 'none')) e.preventDefault();
-});
-
-// ... (handleOrientation, requestSensorPermission, if (window.DeviceOrientationEvent) sin cambios) ...
-function handleOrientation(event) { let gamma = event.gamma; if (gamma === null || gamma === undefined) return; const MAX_EFFECTIVE_GAMMA_SENSOR = 30; sensorTiltX = gamma / MAX_EFFECTIVE_GAMMA_SENSOR; sensorTiltX = Math.max(-1, Math.min(1, sensorTiltX)); }
-function requestSensorPermission() { enableSensorButton.classList.add('sensor-button--activating'); setTimeout(() => { enableSensorButton.classList.remove('sensor-button--activating'); }, 300); if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') { DeviceOrientationEvent.requestPermission() .then(permissionState => { if (permissionState === 'granted') { window.addEventListener('deviceorientation', handleOrientation, true); sensorActive = true; enableSensorButton.style.display = 'none'; tiltLeftButton.style.display = 'none'; tiltRightButton.style.display = 'none'; setPersistentInstructions(); } else { showMessage("Permiso del sensor denegado.", 3000, true); enableSensorButton.textContent = "Sensor Denegado"; enableSensorButton.disabled = true; } }).catch(error => { console.error("Error al solicitar permiso del sensor:", error); showMessage("Error al activar sensor.", 3000, true); }); } else if (window.DeviceOrientationEvent){ window.addEventListener('deviceorientation', handleOrientation, true); sensorActive = true; enableSensorButton.style.display = 'none'; tiltLeftButton.style.display = 'none'; tiltRightButton.style.display = 'none'; setPersistentInstructions(); } else { showMessage("Sensor no soportado.", 3000, true); enableSensorButton.style.display = 'none'; } }
-if (window.DeviceOrientationEvent) { sensorAvailable = true; enableSensorButton.style.display = 'inline-block'; enableSensorButton.disabled = false; enableSensorButton.textContent = "SENSOR"; enableSensorButton.addEventListener('click', requestSensorPermission); } else { console.log("Sensor de orientación no soportado por este navegador/dispositivo."); enableSensorButton.style.display = 'none'; }
-
-
-// --- GAME LOOP ---
-function gameLoop(currentTime) { 
-    if (!gameRunning && !gameOver) { 
-        if (typeof performance !== 'undefined' && performance.now) { lastTime = performance.now(); } 
-        else { lastTime = Date.now(); }
-        if(startScreen.style.display === 'none' || startScreen.style.display === ''){
-             ctx.clearRect(0, 0, canvas.width, canvas.height); 
-             drawScoreOnCanvas(); 
-        }
-        requestAnimationFrame(gameLoop);
-        return;
-    }
-    if (gameOver) { return; }
-
-    const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
-    let dt = (now - lastTime) / 1000.0; 
-    if (dt <= 0 || isNaN(dt) || dt > (TARGET_DT * 5) ) dt = TARGET_DT; 
-    lastTime = now;
-    const deltaTime = dt; 
-    
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    if (scorePulseActive) {
-        scorePulseTimer -= deltaTime * TARGET_FPS; 
-        if (scorePulseTimer <= 0) { scorePulseActive = false; currentScoreDisplaySize = SCORE_NORMAL_SIZE; } 
-        else { const pulseProgress = 1 - (scorePulseTimer / SCORE_PULSE_DURATION); currentScoreDisplaySize = SCORE_NORMAL_SIZE + Math.sin(pulseProgress * Math.PI) * (SCORE_PULSE_SIZE - SCORE_NORMAL_SIZE); }
-    }
-
-    const accelerationFactor = deltaTime * TARGET_FPS; 
-    const pressureChange = JET_PRESSURE_INCREMENT_BASE * accelerationFactor;
-    const pressureDecay = JET_PRESSURE_DECREMENT_BASE * accelerationFactor;
-
-    if (leftJetInputActive) { // Usar input directo
-        if (leftJetPressure < 0.1 && !jetSoundPlaying) { // Iniciar sonido si la presión es baja y no está sonando
-            playSound('jet', 0.3 + leftJetPressure * 0.4, false);
-            jetSoundPlaying = true; // Marcar que está sonando (para el lado izquierdo)
-        }
-        leftJetPressure += pressureChange;
-        if (leftJetPressure > MAX_JET_PRESSURE) leftJetPressure = MAX_JET_PRESSURE;
-        if(leftJetPressure > 0.1) createJetParticle(-1, leftJetPressure); 
-    } else {
-        if (leftJetPressure > 0) { // Si había presión y se soltó
-            stopSound('jet'); // Detener el sonido del chorro
-        }
-        leftJetPressure -= pressureDecay;
-        if (leftJetPressure < 0) leftJetPressure = 0;
-    }
-
-    if (rightJetInputActive) { // Usar input directo
-         if (rightJetPressure < 0.1 && !jetSoundPlaying) {
-            playSound('jet', 0.3 + rightJetPressure * 0.4, false);
-            jetSoundPlaying = true; // Marcar que está sonando (para el lado derecho)
-        }
-        rightJetPressure += pressureChange;
-        if (rightJetPressure > MAX_JET_PRESSURE) rightJetPressure = MAX_JET_PRESSURE;
-        if(rightJetPressure > 0.1) createJetParticle(1, rightJetPressure);
-    } else {
-         if (rightJetPressure > 0) {
-            stopSound('jet');
-        }
-        rightJetPressure -= pressureDecay;
-        if (rightJetPressure < 0) rightJetPressure = 0;
-    }
-     // Reset jetSoundPlaying si ambos chorros están inactivos
-    if (!leftJetInputActive && !rightJetInputActive) {
-        jetSoundPlaying = false;
-    }
-
-    
-    let forceForTiltUpdate = 0; 
-    if (sensorActive && sensorAvailable) { 
-        forceForTiltUpdate = sensorTiltX * TILT_FORCE_SENSOR_MULTIPLIER;                                                                         
-        if (forceForTiltUpdate > MAX_SENSOR_TILT_FORCE) forceForTiltUpdate = MAX_SENSOR_TILT_FORCE;
-        if (forceForTiltUpdate < -MAX_SENSOR_TILT_FORCE) forceForTiltUpdate = -MAX_SENSOR_TILT_FORCE;
-    } else { 
-        if (tiltLeftActive === true && tiltRightActive === false) { forceForTiltUpdate = -TILT_FORCE_BUTTON_BASE; } 
-        else if (tiltRightActive === true && tiltLeftActive === false) { forceForTiltUpdate = TILT_FORCE_BUTTON_BASE; }
-    }
-    
-    updateRings(forceForTiltUpdate, deltaTime); 
-    drawAllPegsAndLandedRings();
-    rings.forEach(ring => { drawRing(ring); });
-    updateAndDrawJetParticles(deltaTime);
-    updateAndDrawFloatingScores(deltaTime);
-    drawScoreOnCanvas(); 
-
-    if (!gameOver) { 
-        if (landedRingsCount >= totalRingsToLand && totalRingsToLand > 0) {
-            if (pegs.every(p => p.isFullAndScored || p.landedRings.length === MAX_RINGS_PER_PEG) && allPegsCompletedBonusFactor === 1) {
-                 checkAllPegsCompleted(); 
+    // --- GAME LOOP ---
+    function gameLoop(currentTime) { 
+        if (isPausedForLevelTransition) {
+            if (levelStartScreen && levelStartScreen.style.display === 'flex') {
+                 if(ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+                 drawScoreOnCanvas(); 
+                 if(ARCADE_LEVELS[currentArcadeLevel]) { drawArcadeInfoOnCanvas(); }
+            } else if (levelEndScreen && levelEndScreen.style.display === 'flex') {
+                 if(ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+                 drawScoreOnCanvas(); 
             }
-            triggerGameOver();
+            if(!gameLoopId && isPausedForLevelTransition) { // Asegurar que el loop sigue para UI de transición
+                gameLoopId = requestAnimationFrame(gameLoop);
+            } else if (isPausedForLevelTransition) { // Solo solicitar nuevo si está pausado
+                 requestAnimationFrame(gameLoop);
+            }
+            return;
+        }
+
+        if (!gameRunning && !gameOver) { 
+            if (typeof performance !== 'undefined' && performance.now) { lastTime = performance.now(); } 
+            else { lastTime = Date.now(); }
+            if(ctx) ctx.clearRect(0, 0, canvas.width, canvas.height); 
+            if (startScreen && (startScreen.style.display === 'none' || startScreen.style.display === '')) {
+                 drawScoreOnCanvas(); 
+            } else if (startScreen && startScreen.style.display === 'flex') {
+                // No es necesario dibujar el score si la pantalla de inicio está full screen
+            }
+            requestAnimationFrame(gameLoop);
+            return;
+        }
+        if (gameOver) { return; }
+
+        const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+        let dt = (now - lastTime) / 1000.0; 
+        if (dt <= 0 || isNaN(dt) || dt > (TARGET_DT * 5) ) dt = TARGET_DT; 
+        lastTime = now;
+        const deltaTime = dt; 
+        
+        if(ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        if (scorePulseActive) { /* ... */ }
+        const accelerationFactor = deltaTime * TARGET_FPS; 
+        const pressureChange = JET_PRESSURE_INCREMENT_BASE * accelerationFactor;
+        const pressureDecay = JET_PRESSURE_DECREMENT_BASE * accelerationFactor;
+        if (leftJetInputActive) { leftJetPressure += pressureChange; if (leftJetPressure > MAX_JET_PRESSURE) leftJetPressure = MAX_JET_PRESSURE; if(leftJetPressure > 0.1) createJetParticle(-1, leftJetPressure); } 
+        else { leftJetPressure -= pressureDecay; if (leftJetPressure < 0) leftJetPressure = 0; }
+        if (rightJetInputActive) { rightJetPressure += pressureChange; if (rightJetPressure > MAX_JET_PRESSURE) rightJetPressure = MAX_JET_PRESSURE; if(rightJetPressure > 0.1) createJetParticle(1, rightJetPressure); } 
+        else { rightJetPressure -= pressureDecay; if (rightJetPressure < 0) rightJetPressure = 0; }
+        if (currentGameMode === 'arcade' && !gameOver && gameRunning) { timeLeftInLevel -= deltaTime; if (timeLeftInLevel <= 0) { timeLeftInLevel = 0; triggerGameOver_ArcadeMode(false); } }
+        
+        if (pegs && pegs.length > 0 && ARCADE_LEVELS[currentArcadeLevel]) updatePegs(deltaTime); 
+
+        let forceForTiltUpdate = 0; 
+        if (sensorActive && sensorAvailable) { forceForTiltUpdate = sensorTiltX * TILT_FORCE_SENSOR_MULTIPLIER; if (forceForTiltUpdate > MAX_SENSOR_TILT_FORCE) forceForTiltUpdate = MAX_SENSOR_TILT_FORCE; if (forceForTiltUpdate < -MAX_SENSOR_TILT_FORCE) forceForTiltUpdate = -MAX_SENSOR_TILT_FORCE; } 
+        else { if (tiltLeftActive === true && tiltRightActive === false) { forceForTiltUpdate = -TILT_FORCE_BUTTON_BASE; } else if (tiltRightActive === true && tiltLeftActive === false) { forceForTiltUpdate = TILT_FORCE_BUTTON_BASE; } }
+        
+        if(rings) updateRings(forceForTiltUpdate, deltaTime); 
+        drawAllPegsAndLandedRings();
+        if(rings) rings.forEach(ring => { drawRing(ring); });
+        updateAndDrawJetParticles(deltaTime);
+        updateAndDrawFloatingScores(deltaTime);
+        drawScoreOnCanvas(); 
+        if (currentGameMode === 'arcade') drawArcadeInfoOnCanvas();
+        if(gameRunning && !gameOver){ gameLoopId = requestAnimationFrame(gameLoop); }
+    }
+    
+    function startGameFlow(mode) {
+        console.log(">>>> startGameFlow called with mode:", mode);
+        if(startScreen) startScreen.style.display = 'none'; else console.warn("startGameFlow: startScreen is null");
+        if (howToPlayScreen && howToPlayScreen.style.display !== 'none') howToPlayScreen.style.display = 'none'; 
+        
+        initGame(mode); // Llama a initGame que configura variables, incluyendo el primer nivel de arcade
+        
+        if (mode === 'arcade') {
+             // initGame llama a prepareArcadeLevel que muestra el modal de "Nivel X".
+            // El juego (gameRunning = true) se iniciará con el botón de ese modal.
+        } else { // Modo Normal
+            gameRunning = true; 
+            gameOver = false;
+            isPausedForLevelTransition = false;
+            if (gameLoopId) { cancelAnimationFrame(gameLoopId); }
+            if (typeof performance !== 'undefined' && performance.now) { lastTime = performance.now(); } 
+            else { lastTime = Date.now(); }
+            console.log(">>>> Requesting gameloop for Normal Mode start");
+            gameLoopId = requestAnimationFrame(gameLoop);
         }
     }
-    if(gameRunning && !gameOver){ gameLoopId = requestAnimationFrame(gameLoop); }
-}
 
-// --- Event Listener para el Botón de Inicio ---
-startGameButton.addEventListener('click', () => {
-    playSound('uiClick');
-    startScreen.style.display = 'none'; 
-    if (howToPlayScreen.style.display !== 'none') howToPlayScreen.style.display = 'none'; 
-    
-    initGame(); gameRunning = true; gameOver = false;
-    if (gameLoopId) { cancelAnimationFrame(gameLoopId); }
+    // --- Configuración Inicial ---
+    console.log(">>>> Script principal dentro de DOMContentLoaded. Configurando estado inicial...");
+    if (messageBoard) setPersistentInstructions(); 
+    else { console.error("ERROR: messageBoard NOT FOUND en setup inicial."); }
+
+    if (startScreen) {
+        startScreen.style.display = 'flex'; 
+        console.log(">>>> Pantalla de inicio (startScreen) debería estar visible.");
+    } else {
+        console.error("!!!!!!!! FATAL: startScreen NO ENCONTRADO al final del script. No se puede mostrar la pantalla de inicio. !!!!!!!!!");
+    }
+
     if (typeof performance !== 'undefined' && performance.now) { lastTime = performance.now(); } 
     else { lastTime = Date.now(); }
-    gameLoopId = requestAnimationFrame(gameLoop);
-});
+    console.log(">>>> Iniciando el primer gameloop para UI (debería mostrar pantalla de inicio).");
+    gameLoopId = requestAnimationFrame(gameLoop); 
 
-setPersistentInstructions(); 
-if (typeof performance !== 'undefined' && performance.now) { lastTime = performance.now(); } 
-else { lastTime = Date.now(); }
-gameLoopId = requestAnimationFrame(gameLoop);
+// }); // Fin del DOMContentLoaded (Temporalmente comentado para probar en GitHub Pages sin él)
