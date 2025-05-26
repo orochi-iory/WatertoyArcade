@@ -1,3 +1,4 @@
+<!-- Ejemplo de comentario HTML correcto -->
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -9,17 +10,19 @@
 </head>
 <body>
     <div class="game-container">
-        <div class="game-console"> 
+        <div class="game-console">
             <div class="game-title-bar">WATERTOY ARCADE</div>
+            <div class="game-subtitle-bar">¡Vuelve a tu infancia!</div>
             <div class="screen-area">
                 <canvas id="gameCanvas"></canvas>
                 <div class="underwater-bg"></div>
-                
+
                 <div id="startScreen" style="display: flex;">
                     <h1>WaterToy Arcade</h1>
+                    <p class="subtitle-text">¡Vuelve a tu infancia!</p>
                     <p>¡Encesta todos los aros!</p>
                     <button id="startGameButton" class="start-game-button">Iniciar Juego</button>
-                    <button id="howToPlayButton" class="how-to-play-main-button">Cómo Jugar</button> 
+                    <button id="howToPlayButton" class="how-to-play-main-button">Cómo Jugar</button>
                     <p class="credits">Creado por orochi_iory<br>con la ayuda de Gemini</p>
                 </div>
 
@@ -30,22 +33,23 @@
                         <div class="instructions-section">
                             <h3>Controles:</h3>
                             <p><strong>PC:</strong> Flechas Izquierda/Derecha para inclinar. Tecla 'A' para chorro izquierdo, Tecla 'D' para chorro derecho.</p>
-                            <p><strong>Móvil:</strong> Usa los botones en pantalla para inclinar y activar los chorros. Si tu dispositivo lo permite, puedes activar el "SENSOR" para controlar la inclinación moviendo tu dispositivo.</p>
+                            <p><strong>Móvil:</strong> Usa los botones en pantalla para inclinar y activar los chorros. Si tu dispositivo lo permite, puedes activar el "SENSOR" para controlar la inclinación moviendo tu dispositivo (¡también afecta la gravedad vertical!).</p>
                         </div>
                         <div class="instructions-section">
                             <h3>Objetivo del Juego:</h3>
-                            <p>¡Encesta todos los aros en los palos! Cada aro da puntos. Llenar palos o conseguir rachas de color te dará bonus.</p>
+                            <p>¡Encesta todos los aros en los palos! Cuando un palo se llena (6 aros), se bloqueará con un 🔒 y ya no podrás encestar más en él.</p>
                         </div>
                         <div class="instructions-section">
                             <h3>Puntuación Detallada:</h3>
                             <ul>
-                                <li><strong>Aro Encestado:</strong> 25 puntos.</li>
-                                <li><strong>Racha de Color:</strong> Encestar 2 aros del mismo color seguidos en el mismo palo otorga puntos x2 para el segundo aro.</li>
-                                <li><strong>Palo Lleno (Normal):</strong> Completar un palo con aros de diferentes colores multiplica x4 la suma de los puntos obtenidos por los aros en ese palo.</li>
-                                <li><strong>Palo Lleno (Monocolor):</strong> Completar un palo con todos los aros del mismo color multiplica x10 el valor base de los aros de ese palo (ej: 1500 pts).</li>
-                                <li><strong>Todos los Palos Llenos:</strong> Si se llenan todos los palos, la puntuación acumulada hasta ese momento se multiplica x2.</li>
-                                <li><strong>¡BONO MAESTRO!:</strong> Si llenas todos los palos y cada palo es monocolor con un color diferente (usando los 4 colores disponibles), ¡tu puntuación (antes de cualquier otro multiplicador final) se multiplica x100!</li>
+                                <li><strong>Aro Encestado:</strong> 25 puntos base.</li>
+                                <li><strong>Racha de Color:</strong> Encestar aros del mismo color seguidos en el *mismo palo* duplica el valor del aro anterior en la racha.
+                                    <br>(Ej: 1º aro color X = 25 pts. 2º aro color X = 50 pts. 3º aro color X = 100 pts., etc. Si cambia el color, la racha se reinicia a 25 pts para ese nuevo color en ese palo).</li>
+                                <li><strong>Palo Lleno (Normal):</strong> Cada palo completado con aros de *diferentes colores* multiplica tu puntuación <strong>actual</strong> por <strong>x2</strong> ¡inmediatamente! Si el palo se rompe (un aro se sale), este multiplicador x2 se revierte para ese palo. Los multiplicadores de diferentes palos normales llenos se acumulan (ej: 2 palos x2 = x4 al score actual).</li>
+                                <li><strong>Palo Lleno (Monocolor):</strong> Cada palo completado con todos los aros del *mismo color* se marca. Al final del juego, cada uno de estos palos aplica un multiplicador de <strong>x10</strong> a tu puntuación final (calculada después de todos los x2 de palos normales que se mantuvieron). Si un palo primero se llenó normal (x2) y luego se convierte en monocolor (por un cambio estratégico o error), el x2 se revierte para dar paso al bono x10 final.</li>
+                                <li><strong>¡JUEGO PERFECTO!:</strong> Si llenas los 4 palos, y cada uno es monocolor (usando los 4 colores disponibles, uno por palo distinto), tu puntuación base (aros + rachas, antes de cualquier multiplicador de palo) se multiplica por <strong>x100</strong>. ¡Este bono anula los otros multiplicadores x2 y x10!</li>
                             </ul>
+                            <p><strong>Estrategia:</strong> Los multiplicadores x2 por palos normales se aplican al instante, ¡así que cerrar palos pronto puede aumentar tu score rápido! Pero cuidado, si se rompen, pierdes el multiplicador. Los bonos x10 y x100 por palos monocolor y juego perfecto se calculan al final sobre la puntuación base obtenida.</p>
                         </div>
                     </div>
                 </div>
@@ -58,7 +62,7 @@
                 </div>
                 <div class="score-display-container">
                      <button id="resetButton" class="reset-button">Reset</button>
-                     <button id="fullscreenButton" class="fullscreen-button">⛶</button> 
+                     <button id="fullscreenButton" class="fullscreen-button">⛶</button>
                      <button id="enableSensorButton" class="sensor-button" style="display: none;">SENSOR</button>
                 </div>
                 <div class="control-column">
