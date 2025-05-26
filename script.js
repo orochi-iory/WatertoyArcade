@@ -37,11 +37,11 @@ function initializeAndRunGame() {
     const MAX_JET_PRESSURE = 1.0;
     const JET_PRESSURE_INCREMENT_BASE = 0.05;
     const JET_PRESSURE_DECREMENT_BASE = 0.08;
-    const BASE_JET_STRENGTH = 3.5; // Mantenido
+    const BASE_JET_STRENGTH = 3.8;
     const JET_HORIZONTAL_INFLUENCE_RATIO = 0.28;
-    const JET_EFFECT_RADIUS_Y = gameScreenHeight * 0.8;
-    const JET_VERTICAL_FALLOFF_POWER = 0.7;
+    const JET_EFFECT_RADIUS_Y = gameScreenHeight * 0.75;
     const JET_EFFECT_RADIUS_X = gameScreenWidth * 0.38;
+    const JET_VERTICAL_FALLOFF_POWER = 0.6;
     const MAX_JET_PARTICLES = 200;
     const TILT_FORCE_BUTTON_BASE = 0.30;
     const TILT_FORCE_SENSOR_MULTIPLIER = 0.055;
@@ -59,13 +59,13 @@ function initializeAndRunGame() {
     const GROUND_FLAT_RING_THICKNESS = 5;
     const MAX_TOTAL_RINGS_ON_SCREEN = MAX_RINGS_PER_PEG * TOTAL_COLORS;
 
-    const LANDED_RING_JET_EFFECT_MULTIPLIER = 0.25; // Efecto reducido en aros encestados
-    const LANDED_RING_MAX_DISPLACEMENT_X = PEG_VISUAL_WIDTH * 0.6; // Cuánto se puede mover horizontalmente
-    const LANDED_RING_RETURN_TO_CENTER_SPEED_FACTOR = 0.08; // Factor para la fuerza de retorno al centro
+    const LANDED_RING_JET_EFFECT_MULTIPLIER = 0.25;
+    const LANDED_RING_MAX_DISPLACEMENT_X = PEG_VISUAL_WIDTH * 0.5;
+    const LANDED_RING_RETURN_TO_CENTER_SPEED = 0.8;
     const PEG_COMPLETED_FLASH_DURATION_FRAMES = 90;
     const PEG_COMPLETED_FLASH_INTERVAL_FRAMES = 8;
     const PEG_COMPLETED_FLASH_COLOR = '#FFFFFF';
-    const LANDED_RING_WEIGHT_INCREASE_FACTOR = 4.5; // Resistencia al chorro
+    const LANDED_RING_WEIGHT_INCREASE_FACTOR = 4.5;
 
     let score = 0;
     let scorePulseActive = false;
@@ -247,15 +247,14 @@ function initializeAndRunGame() {
             );
         } else {
             const scaleYValue = Math.abs(Math.cos(ring.rotationAngle));
-            const EDGE_VIEW_THRESHOLD = 0.12;
+            const effectiveScaleY = Math.max(0.08, scaleYValue);
 
-            if (scaleYValue < EDGE_VIEW_THRESHOLD && !ring.landed) {
-                const tempFlatThickness = FLAT_RING_VIEW_THICKNESS * 0.7;
+            if (scaleYValue < 0.08 && !ring.landed) {
+                const tempFlatThickness = GROUND_FLAT_RING_THICKNESS * 0.8;
                 const halfFlatViewThickness = tempFlatThickness / 2;
                 const flatDrawWidth = outerRadius * 2;
-
                 ctx.fillStyle = RING_OUTLINE_COLOR;
-                ctx.fillRect(
+                 ctx.fillRect(
                     -flatDrawWidth / 2 - RING_OUTLINE_WIDTH_ON_SCREEN,
                     -halfFlatViewThickness - RING_OUTLINE_WIDTH_ON_SCREEN,
                     flatDrawWidth + (RING_OUTLINE_WIDTH_ON_SCREEN * 2),
@@ -268,8 +267,8 @@ function initializeAndRunGame() {
                     flatDrawWidth,
                     tempFlatThickness
                 );
+
             } else {
-                const effectiveScaleY = Math.max(0.02, scaleYValue);
                 ctx.scale(1, effectiveScaleY);
                 const outlineScaledOffset = RING_OUTLINE_WIDTH_ON_SCREEN / effectiveScaleY;
 
@@ -374,7 +373,7 @@ function initializeAndRunGame() {
         if (message && message !== "") {
             showMessage(message, 2500);
         }
-         if (score < 0) score = 0;
+         if (score < 0) score = 0; // Evitar score negativo
     }
 
     function checkAndApplyBonuses(landedRing, peg) {
@@ -467,7 +466,7 @@ function initializeAndRunGame() {
     }
 
     function handleRingEscape(ring, peg) {
-        console.log(`Ring ${ring.originalColor} (ID ${rings.indexOf(ring)}) escapó del peg ${peg.id}. Puntos previos: ${ring.awardedPoints}, Streak: ${ring.colorStreakBonusGiven}`);
+        console.log(`Ring ${ring.originalColor} (index ${rings.indexOf(ring)}) escapó del peg ${peg.id}. Puntos a restar: ${ring.awardedPoints}`);
         score -= ring.awardedPoints;
         baseScoreFromRings -= ring.basePoints;
         if (ring.colorStreakBonusGiven > 0) {
@@ -494,7 +493,6 @@ function initializeAndRunGame() {
             });
 
             if (peg.isMonoColor) {
-                console.log(`Peg ${peg.id} era MONOCOLOR. Restando bono: ${peg.monoBonusAwarded}`);
                 if (peg.monoBonusAwarded > 0) {
                     score -= peg.monoBonusAwarded;
                     bonusScoreFromMonoColorPegsSpecific -= peg.monoBonusAwarded;
@@ -503,7 +501,6 @@ function initializeAndRunGame() {
                 peg.isMonoColor = false;
                 peg.monoColorValue = null;
             } else {
-                console.log(`Peg ${peg.id} era LLENO NORMAL. Restando bono: ${peg.fullBonusAwarded}`);
                 if (peg.fullBonusAwarded > 0) {
                     score -= peg.fullBonusAwarded;
                     bonusScoreFromFullPegsGeneral -= peg.fullBonusAwarded;
@@ -755,37 +752,42 @@ function initializeAndRunGame() {
         const accelerationFactor = dt * TARGET_FPS;
 
         rings.forEach(ring => {
-            if (ring.isSlidingOnPeg) { // Si se está deslizando, solo actualizar su posición de deslizamiento
+            if (ring.isSlidingOnPeg) {
                 const slideSpeedValue = 4.0 * accelerationFactor;
                 if (ring.y < ring.finalYonPeg) {
                     ring.y += slideSpeedValue;
-                    if (ring.y >= ring.finalYonPeg) { ring.y = ring.finalYonPeg; ring.isSlidingOnPeg = false; ring.vy = 0; }
+                    if (ring.y >= ring.finalYonPeg) {
+                        ring.y = ring.finalYonPeg;
+                        ring.isSlidingOnPeg = false; ring.vy = 0;
+                    }
                 } else {
                     ring.y -= slideSpeedValue;
-                    if (ring.y <= ring.finalYonPeg) { ring.y = ring.finalYonPeg; ring.isSlidingOnPeg = false; ring.vy = 0; }
+                    if (ring.y <= ring.finalYonPeg) {
+                        ring.y = ring.finalYonPeg;
+                        ring.isSlidingOnPeg = false; ring.vy = 0;
+                    }
                 }
                 ring.isFlat = true; ring.rotationAngle = Math.PI / 2; ring.rotationSpeed = 0;
                 ring.zRotationAngle = 0; ring.zRotationSpeed = 0; ring.vx = 0;
-                return; // Salir temprano para este aro
+                return; // Procesamiento para este aro termina aquí si se está deslizando
             }
 
             let prevRingX = ring.x;
             let prevRingY = ring.y;
 
-            // Gravedad y Fricción
-            if (!ring.landed || (ring.landed && ring.y < ring.finalYonPeg - 0.1)) {
-                ring.vy += GRAVITY_BASE * accelerationFactor;
-            } else if (ring.landed && ring.y !== ring.finalYonPeg) { // Si está "casi" en su sitio pero no exacto
+            if (!ring.landed || (ring.landed && ring.y < ring.finalYonPeg - 0.1) ) {
+                 ring.vy += GRAVITY_BASE * accelerationFactor;
+            } else if (ring.landed && ring.y !== ring.finalYonPeg) {
                 const dyToFinal = ring.finalYonPeg - ring.y;
-                ring.vy = dyToFinal * 0.1 * accelerationFactor; // Pequeña corrección
+                 ring.vy = dyToFinal * 0.1 * accelerationFactor;
             }
+
             const frictionRate = 1 - WATER_FRICTION_COEFF;
             ring.vx *= Math.pow(frictionRate, accelerationFactor);
             ring.vy *= Math.pow(frictionRate, accelerationFactor);
 
             let forceAppliedToRingThisFrame = false;
 
-            // Aplicación de fuerzas de chorros
             [[leftJetPressure, 0.22, 1], [rightJetPressure, 0.78, -1]].forEach(([pressure, jetXFactor, horizontalDir]) => {
                 if (pressure > 0.01) {
                     let currentJetForceVertical = BASE_JET_STRENGTH * pressure;
@@ -795,16 +797,14 @@ function initializeAndRunGame() {
                         currentJetForceHorizontal *= (LANDED_RING_JET_EFFECT_MULTIPLIER / LANDED_RING_WEIGHT_INCREASE_FACTOR);
                     }
                     let jetSourceX = gameScreenWidth * jetXFactor;
-                    const jetEffectiveOriginY = gameScreenHeight - 25;
-                    const distYFromJetOrigin = jetEffectiveOriginY - ring.y;
+                    const distanceX = ring.x - jetSourceX;
                     let proximityFactorY = 0;
-                    if (distYFromJetOrigin > 0 && distYFromJetOrigin < JET_EFFECT_RADIUS_Y) {
-                        const attenuationY = distYFromJetOrigin / JET_EFFECT_RADIUS_Y;
-                        proximityFactorY = Math.pow(1 - attenuationY, JET_VERTICAL_FALLOFF_POWER);
-                        proximityFactorY = Math.max(0.01, proximityFactorY);
+                    const yPosInJetEffect = (ring.y - (gameScreenHeight - JET_EFFECT_RADIUS_Y));
+                    if (yPosInJetEffect > 0 && ring.y < gameScreenHeight) {
+                        proximityFactorY = 1 - Math.pow( (JET_EFFECT_RADIUS_Y - yPosInJetEffect) / JET_EFFECT_RADIUS_Y, JET_VERTICAL_FALLOFF_POWER);
+                        proximityFactorY = Math.max(0.05, Math.min(1, proximityFactorY));
                     }
-                    const distanceX = prevRingX - jetSourceX; // Usar prevRingX para la detección de proximidad del chorro
-                    if (Math.abs(distanceX) < JET_EFFECT_RADIUS_X && proximityFactorY > 0.001) {
+                    if (Math.abs(distanceX) < JET_EFFECT_RADIUS_X && proximityFactorY > 0.01) {
                         const proximityFactorX = 1 - (Math.abs(distanceX) / JET_EFFECT_RADIUS_X);
                         const totalProximityFactor = proximityFactorX * proximityFactorY;
                         if (totalProximityFactor > 0) {
@@ -816,7 +816,6 @@ function initializeAndRunGame() {
                 }
             });
 
-            // Aplicación de fuerza de inclinación
             if (actualTiltForceToApply !== 0) {
                 let tiltEffectMultiplier = 1;
                 if (ring.landed) {
@@ -826,115 +825,113 @@ function initializeAndRunGame() {
                 forceAppliedToRingThisFrame = true;
             }
 
-            // Determinar si el aro está en el suelo y lento (SOLO PARA AROS NO ENCESTADOS)
-            const isOnGroundAndEffectivelySlow = !ring.landed &&
-                (prevRingY + RING_OUTER_RADIUS >= gameScreenHeight - (GROUND_FLAT_RING_THICKNESS / 2 + RING_OUTLINE_WIDTH_ON_SCREEN + 0.5)) &&
-                Math.abs(ring.vy * accelerationFactor) < 0.04 && Math.abs(ring.vx * accelerationFactor) < 0.04; // Muy lento
+            ring.x += ring.vx * accelerationFactor;
+            ring.y += ring.vy * accelerationFactor;
 
-            // Lógica de aplanamiento y "despegue"
-            if (!ring.landed) { // Solo para aros no encestados
-                if (forceAppliedToRingThisFrame) {
-                    if (ring.isFlat) { // Si estaba plano y se aplica fuerza, "despegarlo"
-                        ring.isFlat = false;
-                        if (isOnGroundAndEffectivelySlow) ring.vy -= 0.05; // Pequeño impulso anti-atasco
-                        if (ring.rotationSpeed === 0) ring.rotationSpeed = ring.initialRotationSpeed * (Math.random() < 0.5 ? 0.7 : -0.7);
-                        if (ring.zRotationSpeed === 0) ring.zRotationSpeed = (Math.random() - 0.5) * 0.03;
-                    }
-                } else if (isOnGroundAndEffectivelySlow) { // Si no hay fuerza Y está en el suelo lento
-                    ring.isFlat = true;
-                    ring.zRotationSpeed = 0; ring.rotationSpeed = 0; ring.rotationAngle = Math.PI / 2;
-                    ring.vy = 0; // Detener completamente si está en el suelo y lento sin fuerzas
-                }
-            }
-
-            // Aplicar velocidades para obtener nueva posición
-            let nextX = ring.x + ring.vx * accelerationFactor;
-            let nextY = ring.y + ring.vy * accelerationFactor;
-
-            // Lógica para aros encestados
-            if (ring.landed && !ring.isSlidingOnPeg) {
-                ring.x = nextX; // Aplicar movimiento X tentativo
-                ring.y = nextY; // Aplicar movimiento Y tentativo
-
+            if (ring.landed && !ring.isSlidingOnPeg) { // Solo si está encestado y no deslizándose
                 const peg = pegs[ring.pegIndex];
                 if (peg) {
                     const pegTop = peg.bottomY - peg.height;
-                    if (ring.y < pegTop - RING_OUTER_RADIUS * 0.5) { // Usar la Y ya actualizada para predecir escape
+                    if (ring.y < pegTop - RING_OUTER_RADIUS * 0.5) {
                         handleRingEscape(ring, peg);
-                        return; // Salir, estado del aro cambió
+                        return; // Importante: salir de la lógica de este aro para este frame
                     }
-
                     let idealX = peg.x;
                     const displacementX = ring.x - idealX;
-
                     if (Math.abs(displacementX) > LANDED_RING_MAX_DISPLACEMENT_X) {
                         ring.x = idealX + LANDED_RING_MAX_DISPLACEMENT_X * Math.sign(displacementX);
-                        ring.vx *= -0.05; // Rebote muy suave o casi detener si golpea el límite "invisible"
-                    } else if (Math.abs(ring.vx) < 0.15 && Math.abs(displacementX) > 0.05 ) { // Si no hay fuerza grande y está desplazado
-                         ring.vx += (idealX - ring.x) * LANDED_RING_RETURN_TO_CENTER_SPEED_FACTOR * accelerationFactor;
+                    }
+                    if (Math.abs(ring.vx) < 0.15 && Math.abs(ring.x - idealX) > 0.5) {
+                        ring.x += (idealX - ring.x) * LANDED_RING_RETURN_TO_CENTER_SPEED * 0.3 * accelerationFactor;
+                         if (Math.abs(ring.x - idealX) < 0.5) {
+                            ring.x = idealX; ring.vx = 0;
+                         }
+                    } else if (Math.abs(ring.vx) < 0.05 && Math.abs(ring.x - idealX) <= 0.5) {
+                        ring.x = idealX; ring.vx = 0;
                     }
 
-
-                    if (Math.abs(ring.vy) < GRAVITY_BASE * 2 && ring.y !== ring.finalYonPeg) { // Si no hay una fuerza vertical fuerte
+                    if (Math.abs(ring.vy) < GRAVITY_BASE * 1.5 && ring.y !== ring.finalYonPeg) {
                         const dyToFinal = ring.finalYonPeg - ring.y;
-                        if (Math.abs(dyToFinal) > 0.05) {
-                           if (dyToFinal > 0) { ring.y += Math.min(dyToFinal, 2.0 * accelerationFactor); }
-                           else { ring.y += dyToFinal * 0.3 * accelerationFactor; }
+                        if (Math.abs(dyToFinal) > 0.1) {
+                           if (dyToFinal > 0) {
+                               ring.y += Math.min(dyToFinal, 2.0 * accelerationFactor);
+                           } else {
+                                ring.y += dyToFinal * 0.3 * accelerationFactor;
+                           }
                         }
-                        if (Math.abs(ring.y - ring.finalYonPeg) < 0.1 && Math.abs(ring.vy) < 0.05) {
+                        if (Math.abs(ring.y - ring.finalYonPeg) < 0.5) {
                             ring.y = ring.finalYonPeg; ring.vy = 0;
                         }
                     }
                 }
                 ring.isFlat = true; ring.rotationAngle = Math.PI / 2; ring.rotationSpeed = 0;
                 ring.zRotationAngle = 0; ring.zRotationSpeed = 0;
-            } else { // Aro no encestado
-                ring.x = nextX;
-                ring.y = nextY;
             }
 
 
-            // Rotaciones para aros no encestados y no planos
+            const isOnGroundAndEffectivelySlow = ring.y + RING_OUTER_RADIUS >= gameScreenHeight - (GROUND_FLAT_RING_THICKNESS / 2 + RING_OUTLINE_WIDTH_ON_SCREEN + 1) && Math.abs(ring.vy) < 0.15 && Math.abs(ring.vx) < 0.15;
+            if (ring.isFlat && forceAppliedToRingThisFrame && !isOnGroundAndEffectivelySlow && !ring.landed) {
+                ring.isFlat = false;
+                if (ring.rotationSpeed === 0) {
+                    ring.rotationSpeed = ring.initialRotationSpeed * (Math.random() < 0.5 ? 0.7 : -0.7) * (0.7 + Math.random() * 0.6) ;
+                }
+                if (ring.zRotationSpeed === 0 && forceAppliedToRingThisFrame) {
+                    ring.zRotationSpeed = (Math.random() - 0.5) * 0.03;
+                }
+            } else if (!ring.landed && isOnGroundAndEffectivelySlow && !forceAppliedToRingThisFrame) {
+                ring.isFlat = true;
+                ring.zRotationSpeed = 0;
+            }
+
             if (!ring.isFlat && !ring.landed) {
                 ring.rotationAngle += ring.rotationSpeed * accelerationFactor;
                 if (ring.rotationAngle > Math.PI * 2) ring.rotationAngle -= Math.PI * 2;
                 if (ring.rotationAngle < 0) ring.rotationAngle += Math.PI * 2;
                 const rotationalFrictionRate = 1 - 0.01;
                 ring.rotationSpeed *= Math.pow(rotationalFrictionRate, accelerationFactor);
-                if (Math.abs(ring.rotationSpeed) < 0.005 / (accelerationFactor || 1) ) ring.rotationSpeed = 0;
+                if (Math.abs(ring.rotationSpeed) < 0.005 / (accelerationFactor > 0 ? accelerationFactor : 1) ) ring.rotationSpeed = 0;
+            } else if (!ring.landed) {
+                ring.rotationAngle = Math.PI / 2;
+                ring.rotationSpeed = 0;
+            }
 
+            if (!ring.landed) {
                 ring.zRotationAngle += ring.zRotationSpeed * accelerationFactor;
                 if (ring.zRotationAngle > Math.PI * 2) ring.zRotationAngle -= Math.PI * 2;
                 else if (ring.zRotationAngle < 0) ring.zRotationAngle += Math.PI * 2;
                 ring.zRotationSpeed *= Math.pow((1 - 0.025), accelerationFactor);
                 if (Math.abs(ring.zRotationSpeed) < 0.001 / (accelerationFactor || 1)) ring.zRotationSpeed = 0;
-            } else if (!ring.landed) { // Si está plano pero no encestado
-                ring.rotationAngle = Math.PI / 2;
-                ring.rotationSpeed = 0;
-                // zRotationAngle y zRotationSpeed se manejan en la lógica de aplanamiento
             }
 
-
-            // Colisiones entre aros
-            if (!ring.landed || ring.isSlidingOnPeg) {
+            if (!ring.landed || ring.isSlidingOnPeg) { // Colisiones entre aros solo si no está "fijo"
                 for (let iter = 0; iter < 2; iter++) {
-                    for (let i = rings.indexOf(ring) + 1; i < rings.length; i++) {
-                        const ring1 = ring; const ring2 = rings[i];
+                    for (let i = rings.indexOf(ring) + 1; i < rings.length; i++) { // Solo comparar con los siguientes
+                        const ring1 = ring;
+                        const ring2 = rings[i];
                         if ((ring1.landed && !ring1.isSlidingOnPeg) || (ring2.landed && !ring2.isSlidingOnPeg)) continue;
-                        const dx = ring2.x - ring1.x; const dy = ring2.y - ring1.y;
+
+                        const dx = ring2.x - ring1.x;
+                        const dy = ring2.y - ring1.y;
                         const distance = Math.sqrt(dx * dx + dy * dy);
                         const minDistance = RING_OUTER_RADIUS * 2;
+
                         if (distance < minDistance && distance > 0.001) {
                             const overlap = (minDistance - distance);
-                            const normalX = dx / distance; const normalY = dy / distance;
-                            ring1.x -= overlap * 0.5 * normalX; ring1.y -= overlap * 0.5 * normalY;
-                            ring2.x += overlap * 0.5 * normalX; ring2.y += overlap * 0.5 * normalY;
-                            const relativeVx = ring1.vx - ring2.vx; const relativeVy = ring1.vy - ring2.vy;
+                            const normalX = dx / distance;
+                            const normalY = dy / distance;
+                            ring1.x -= overlap * 0.5 * normalX;
+                            ring1.y -= overlap * 0.5 * normalY;
+                            ring2.x += overlap * 0.5 * normalX;
+                            ring2.y += overlap * 0.5 * normalY;
+                            const relativeVx = ring1.vx - ring2.vx;
+                            const relativeVy = ring1.vy - ring2.vy;
                             const dotProduct = relativeVx * normalX + relativeVy * normalY;
                             if (dotProduct > 0) {
                                 const impulse = (-(1 + RING_COLLISION_BOUNCE) * dotProduct) / 2;
-                                ring1.vx += impulse * normalX; ring1.vy += impulse * normalY;
-                                ring2.vx -= impulse * normalX; ring2.vy -= impulse * normalY;
+                                ring1.vx += impulse * normalX;
+                                ring1.vy += impulse * normalY;
+                                ring2.vx -= impulse * normalX;
+                                ring2.vy -= impulse * normalY;
                                 if (!ring1.isFlat && Math.abs(ring1.rotationSpeed) < 0.2) ring1.rotationSpeed += (Math.random() - 0.5) * 0.05 / (accelerationFactor || 1);
                                 if (!ring2.isFlat && Math.abs(ring2.rotationSpeed) < 0.2) ring2.rotationSpeed += (Math.random() - 0.5) * 0.05 / (accelerationFactor || 1);
                                 if (Math.abs(ring1.zRotationSpeed) < 0.05) ring1.zRotationSpeed += (Math.random() - 0.5) * 0.03 / (accelerationFactor || 1);
@@ -945,46 +942,69 @@ function initializeAndRunGame() {
                 }
             }
 
-            // Colisiones con palos (encestar) y entorno (paredes, suelo)
-            let interactionOccurredThisFrame = false; // Local para esta sección
+            let interactionOccurredThisFrame = false; // Local para colisiones con palos/entorno
             if (!ring.landed && pegs) {
                 for (const peg of pegs) {
-                    if (ring.landed || interactionOccurredThisFrame || peg.landedRings.length >= MAX_RINGS_PER_PEG || peg.isFullAndScored ) continue;
-                    const pegCenterX = peg.x; const pegTop = peg.bottomY - peg.height;
+                    if (ring.landed || interactionOccurredThisFrame || peg.landedRings.length >= MAX_RINGS_PER_PEG || peg.isFullAndScored ) {
+                        continue;
+                    }
+                    const pegCenterX = peg.x;
+                    const pegTop = peg.bottomY - peg.height;
+                    // Usar una definición simple de borde inferior para la colisión de enceste
                     const ringBottomForCollision = ring.y + RING_OUTER_RADIUS;
                     const prevRingBottomForCollision = prevRingY + RING_OUTER_RADIUS;
                     const landingCatchWidth = PEG_VISUAL_WIDTH * 1.8;
+
                     const horizontallyAligned = Math.abs(ring.x - pegCenterX) < landingCatchWidth / 2;
                     const isFalling = ring.vy > 0;
 
                     if (isFalling && horizontallyAligned &&
-                        ringBottomForCollision >= pegTop && prevRingBottomForCollision < pegTop + RING_VISUAL_THICKNESS * 0.9 ) {
+                        ringBottomForCollision >= pegTop && prevRingBottomForCollision < pegTop + RING_VISUAL_THICKNESS * 0.9 ) { // Umbral un poco más generoso
                         const targetLandedY = (peg.bottomY - FLAT_RING_VIEW_THICKNESS / 2) - (peg.landedRings.length * FLAT_RING_VIEW_THICKNESS);
-                        ring.isSlidingOnPeg = true; ring.finalYonPeg = targetLandedY;
-                        ring.landed = true; ring.isFlat = true; ring.pegIndex = peg.id;
+                        ring.isSlidingOnPeg = true;
+                        ring.finalYonPeg = targetLandedY;
+                        ring.landed = true;
+                        ring.isFlat = true;
+                        ring.pegIndex = peg.id;
                         ring.x = pegCenterX;
-                        if (ring.y < targetLandedY) { ring.vy = Math.min(4.0, 2.0 + peg.landedRings.length * 0.1); }
-                        else { ring.vy = -Math.min(4.0, 2.0 + peg.landedRings.length * 0.1); if(targetLandedY > ring.y - 1) ring.vy = 0.1; }
-                        ring.vx = 0; ring.rotationSpeed = 0; ring.rotationAngle = Math.PI / 2;
+                        if (ring.y < targetLandedY) {
+                            ring.vy = Math.min(4.0, 2.0 + peg.landedRings.length * 0.1);
+                        } else {
+                            ring.vy = -Math.min(4.0, 2.0 + peg.landedRings.length * 0.1);
+                            if(targetLandedY > ring.y - 1) ring.vy = 0.1;
+                        }
+                        ring.vx = 0;
+                        ring.rotationSpeed = 0; ring.rotationAngle = Math.PI / 2;
                         ring.zRotationAngle = 0; ring.zRotationSpeed = 0;
                         ring.landedOrder = peg.landedRings.length;
-                        peg.landedRings.push(ring); checkAndApplyBonuses(ring, peg);
-                        interactionOccurredThisFrame = true; break;
+                        peg.landedRings.push(ring);
+                        checkAndApplyBonuses(ring, peg);
+                        interactionOccurredThisFrame = true;
+                        break;
                     }
+
                     if (!ring.landed && !interactionOccurredThisFrame) {
-                        const pegBodyLeft = pegCenterX - (PEG_VISUAL_WIDTH * 0.8) / 2; const pegBodyRight = pegCenterX + (PEG_VISUAL_WIDTH * 0.8) / 2;
+                        const pegBodyLeft = pegCenterX - (PEG_VISUAL_WIDTH * 0.8) / 2;
+                        const pegBodyRight = pegCenterX + (PEG_VISUAL_WIDTH * 0.8) / 2;
                         if (ring.y + RING_OUTER_RADIUS > pegTop + RING_VISUAL_THICKNESS * 0.3 && ring.y - RING_OUTER_RADIUS < peg.bottomY) {
                             if (ring.x + RING_OUTER_RADIUS > pegBodyLeft && prevRingX + RING_OUTER_RADIUS <= pegBodyLeft + 1 && ring.vx > 0) {
-                                ring.x = pegBodyLeft - RING_OUTER_RADIUS - 0.1; ring.vx *= PEG_COLLISION_BOUNCE_FACTOR; interactionOccurredThisFrame = true;
-                            } else if (ring.x - RING_OUTER_RADIUS < pegBodyRight && prevRingX - RING_OUTER_RADIUS >= pegBodyRight -1 && ring.vx < 0) {
-                                ring.x = pegBodyRight + RING_OUTER_RADIUS + 0.1; ring.vx *= PEG_COLLISION_BOUNCE_FACTOR; interactionOccurredThisFrame = true;
+                                ring.x = pegBodyLeft - RING_OUTER_RADIUS - 0.1;
+                                ring.vx *= PEG_COLLISION_BOUNCE_FACTOR;
+                                interactionOccurredThisFrame = true;
+                            }
+                            else if (ring.x - RING_OUTER_RADIUS < pegBodyRight && prevRingX - RING_OUTER_RADIUS >= pegBodyRight -1 && ring.vx < 0) {
+                                ring.x = pegBodyRight + RING_OUTER_RADIUS + 0.1;
+                                ring.vx *= PEG_COLLISION_BOUNCE_FACTOR;
+                                interactionOccurredThisFrame = true;
                             }
                         }
                         if (!interactionOccurredThisFrame && isFalling &&
                             ring.y + RING_OUTER_RADIUS > pegTop && prevRingY + RING_OUTER_RADIUS <= pegTop + 3 &&
                             Math.abs(ring.x - pegCenterX) < (PEG_VISUAL_WIDTH / 2 + RING_OUTER_RADIUS)) {
-                            ring.y = pegTop - RING_OUTER_RADIUS - 0.1; ring.vy *= (PEG_COLLISION_BOUNCE_FACTOR - 0.1);
-                            ring.vx += (Math.random() - 0.5) * 0.3 * accelerationFactor; interactionOccurredThisFrame = true;
+                            ring.y = pegTop - RING_OUTER_RADIUS - 0.1;
+                            ring.vy *= (PEG_COLLISION_BOUNCE_FACTOR - 0.1);
+                            ring.vx += (Math.random() - 0.5) * 0.3 * accelerationFactor;
+                            interactionOccurredThisFrame = true;
                         }
                     }
                     if (interactionOccurredThisFrame) break;
@@ -994,22 +1014,23 @@ function initializeAndRunGame() {
             if (ring.x + RING_OUTER_RADIUS > gameScreenWidth && !ring.landed) { ring.x = gameScreenWidth - RING_OUTER_RADIUS; ring.vx *= BOUNCE_FACTOR; }
             if (ring.y - RING_OUTER_RADIUS < 0 && !ring.landed) { ring.y = RING_OUTER_RADIUS; ring.vy *= BOUNCE_FACTOR;}
 
-            const groundCollisionBottomExtent = ring.y + (ring.isFlat ? (GROUND_FLAT_RING_THICKNESS / 2) : (RING_OUTER_RADIUS * Math.abs(Math.cos(ring.rotationAngle)) ));
-            const groundHitPosition = gameScreenHeight - RING_OUTLINE_WIDTH_ON_SCREEN - 0.5;
+            const groundCollisionBottomExtent = ring.y + (ring.isFlat ? (GROUND_FLAT_RING_THICKNESS / 2) : (RING_OUTER_RADIUS * Math.abs(Math.cos(ring.rotationAngle))));
+            const groundHitPosition = gameScreenHeight - RING_OUTLINE_WIDTH_ON_SCREEN;
             if (groundCollisionBottomExtent >= groundHitPosition && !ring.landed) {
                 ring.y = groundHitPosition - (ring.isFlat ? (GROUND_FLAT_RING_THICKNESS / 2) : (RING_OUTER_RADIUS * Math.abs(Math.cos(ring.rotationAngle))));
-                if (ring.vy > 0) ring.vy *= BOUNCE_FACTOR * 0.4;
-                if (Math.abs(ring.vy) < 0.04 / (accelerationFactor || 1) ) { // Usar umbral más bajo
+                if (ring.vy > 0) ring.vy *= BOUNCE_FACTOR * 0.3;
+                if (Math.abs(ring.vy) < 0.05 / (accelerationFactor > 0 ? accelerationFactor : 1) ) {
                     ring.vy = 0;
-                    if (!ring.landed && !forceAppliedToRingThisFrame) { // Solo aplanar si no hay fuerzas activas
+                    if (!ring.landed) {
                         ring.isFlat = true;
-                        ring.rotationSpeed = 0; ring.rotationAngle = Math.PI / 2;
-                        ring.zRotationSpeed = 0;
+                        if (ring.rotationSpeed !==0) ring.rotationSpeed = 0;
+                        ring.rotationAngle = Math.PI / 2;
+                        if (ring.zRotationSpeed !== 0) ring.zRotationSpeed = 0;
                     }
                 }
             }
-        });
-    }
+        }); // Fin rings.forEach
+    } // Fin updateRings
 
 
     function handleOrientation(event) {
@@ -1251,7 +1272,8 @@ function initializeAndRunGame() {
 
         if(rings) updateRings(forceForTiltUpdate, deltaTime);
 
-        drawAllPegsAndLandedRings();
+        drawAllPegsAndLandedRings(); // Dibuja palos y aros YA encestados y fijos
+        // Dibuja aros que no están encestados, o que están deslizándose, o que acaban de escapar
         if(rings) rings.forEach(ring => {
              if (!ring.landed || ring.isSlidingOnPeg || (ring.landed && ring.pegIndex === -1 && !ring.isSlidingOnPeg) ) {
                 drawRing(ring);
