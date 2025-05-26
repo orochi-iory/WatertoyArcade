@@ -46,6 +46,11 @@ function initializeAndRunGame() {
     const TILT_FORCE_BUTTON_BASE = 0.30;
     const TILT_FORCE_SENSOR_MULTIPLIER = 0.055;
     const MAX_SENSOR_TILT_FORCE = 0.55;
+
+    const SENSOR_PITCH_TRANSITION_END_UP = 30;   // Beta positivo: a este ángulo, la fuerza NETA es GRAVITY_BASE hacia abajo.
+    const SENSOR_PITCH_TRANSITION_END_DOWN = -25; // Beta negativo: a este ángulo, la fuerza NETA es GRAVITY_BASE hacia arriba.
+    const MAX_SENSOR_PITCH_FORCE = GRAVITY_BASE; // La fuerza que el sensor puede AÑADIR/RESTAR (será multiplicada por sensorTiltY)
+
     const WATER_FRICTION_COEFF = 0.028;
     const BOUNCE_FACTOR = -0.2;
     const RING_COLLISION_BOUNCE = 0.5;
@@ -99,6 +104,7 @@ function initializeAndRunGame() {
     let tiltLeftActive = false;
     let tiltRightActive = false;
     let sensorTiltX = 0;
+    let sensorTiltY = 0;
     let sensorAvailable = false;
     let sensorActive = false;
 
@@ -169,6 +175,8 @@ function initializeAndRunGame() {
         rightJetPressure = 0;
         tiltLeftActive = false;
         tiltRightActive = false;
+        sensorTiltX = 0;
+        sensorTiltY = 0;
         floatingScores = [];
         jetParticles = [];
         landedRingsCount = 0;
@@ -249,10 +257,11 @@ function initializeAndRunGame() {
             const scaleYValue = Math.abs(Math.cos(ring.rotationAngle));
             const effectiveScaleY = Math.max(0.08, scaleYValue);
 
-            if (scaleYValue < 0.08 && !ring.landed) {
-                const tempFlatThickness = GROUND_FLAT_RING_THICKNESS * 0.8;
+            if (effectiveScaleY < 0.24 && !ring.landed && !ring.isSlidingOnPeg) {
+                const tempFlatThickness = GROUND_FLAT_RING_THICKNESS * 0.75;
                 const halfFlatViewThickness = tempFlatThickness / 2;
                 const flatDrawWidth = outerRadius * 2;
+
                 ctx.fillStyle = RING_OUTLINE_COLOR;
                  ctx.fillRect(
                     -flatDrawWidth / 2 - RING_OUTLINE_WIDTH_ON_SCREEN,
@@ -373,7 +382,7 @@ function initializeAndRunGame() {
         if (message && message !== "") {
             showMessage(message, 2500);
         }
-         if (score < 0) score = 0; // Evitar score negativo
+         if (score < 0) score = 0;
     }
 
     function checkAndApplyBonuses(landedRing, peg) {
@@ -466,7 +475,7 @@ function initializeAndRunGame() {
     }
 
     function handleRingEscape(ring, peg) {
-        console.log(`Ring ${ring.originalColor} (index ${rings.indexOf(ring)}) escapó del peg ${peg.id}. Puntos a restar: ${ring.awardedPoints}`);
+        console.log(`Ring ${ring.originalColor} (ID: ${rings.indexOf(ring)}) escapó del peg ${peg.id}. Puntos previos: ${ring.awardedPoints}, Streak: ${ring.colorStreakBonusGiven}`);
         score -= ring.awardedPoints;
         baseScoreFromRings -= ring.basePoints;
         if (ring.colorStreakBonusGiven > 0) {
@@ -493,6 +502,7 @@ function initializeAndRunGame() {
             });
 
             if (peg.isMonoColor) {
+                console.log(`Peg ${peg.id} ya no es monocolor. Reversando bono: ${peg.monoBonusAwarded}`);
                 if (peg.monoBonusAwarded > 0) {
                     score -= peg.monoBonusAwarded;
                     bonusScoreFromMonoColorPegsSpecific -= peg.monoBonusAwarded;
@@ -501,6 +511,7 @@ function initializeAndRunGame() {
                 peg.isMonoColor = false;
                 peg.monoColorValue = null;
             } else {
+                console.log(`Peg ${peg.id} ya no está lleno. Reversando bono: ${peg.fullBonusAwarded}`);
                 if (peg.fullBonusAwarded > 0) {
                     score -= peg.fullBonusAwarded;
                     bonusScoreFromFullPegsGeneral -= peg.fullBonusAwarded;
@@ -628,7 +639,7 @@ function initializeAndRunGame() {
             }
             if (tiltLeftButton && (!sensorActive || !sensorAvailable) ) tiltLeftButton.style.display = 'flex';
             if(tiltRightButton && (!sensorActive || !sensorAvailable) ) tiltRightButton.style.display = 'flex';
-            sensorActive = false;
+            sensorActive = false; sensorTiltX = 0; sensorTiltY = 0;
             if(messageBoard) setPersistentInstructions();
             if (!gameLoopId) {
                 if (typeof performance !== 'undefined' && performance.now) { lastTime = performance.now(); }
@@ -769,18 +780,14 @@ function initializeAndRunGame() {
                 }
                 ring.isFlat = true; ring.rotationAngle = Math.PI / 2; ring.rotationSpeed = 0;
                 ring.zRotationAngle = 0; ring.zRotationSpeed = 0; ring.vx = 0;
-                return; // Procesamiento para este aro termina aquí si se está deslizando
+                return;
             }
 
             let prevRingX = ring.x;
             let prevRingY = ring.y;
 
-            if (!ring.landed || (ring.landed && ring.y < ring.finalYonPeg - 0.1) ) {
-                 ring.vy += GRAVITY_BASE * accelerationFactor;
-            } else if (ring.landed && ring.y !== ring.finalYonPeg) {
-                const dyToFinal = ring.finalYonPeg - ring.y;
-                 ring.vy = dyToFinal * 0.1 * accelerationFactor;
-            }
+            // Aplicar GRAVITY_BASE siempre
+            ring.vy += GRAVITY_BASE * accelerationFactor;
 
             const frictionRate = 1 - WATER_FRICTION_COEFF;
             ring.vx *= Math.pow(frictionRate, accelerationFactor);
@@ -788,6 +795,7 @@ function initializeAndRunGame() {
 
             let forceAppliedToRingThisFrame = false;
 
+            // Chorros
             [[leftJetPressure, 0.22, 1], [rightJetPressure, 0.78, -1]].forEach(([pressure, jetXFactor, horizontalDir]) => {
                 if (pressure > 0.01) {
                     let currentJetForceVertical = BASE_JET_STRENGTH * pressure;
@@ -808,7 +816,7 @@ function initializeAndRunGame() {
                         const proximityFactorX = 1 - (Math.abs(distanceX) / JET_EFFECT_RADIUS_X);
                         const totalProximityFactor = proximityFactorX * proximityFactorY;
                         if (totalProximityFactor > 0) {
-                            ring.vy -= (currentJetForceVertical * totalProximityFactor) * accelerationFactor;
+                            ring.vy -= (currentJetForceVertical * totalProximityFactor) * accelerationFactor; // Resta porque el chorro empuja hacia arriba
                             ring.vx += (currentJetForceHorizontal * totalProximityFactor * horizontalDir) * accelerationFactor;
                             forceAppliedToRingThisFrame = true;
                         }
@@ -816,6 +824,7 @@ function initializeAndRunGame() {
                 }
             });
 
+            // Inclinación lateral (gamma / botones)
             if (actualTiltForceToApply !== 0) {
                 let tiltEffectMultiplier = 1;
                 if (ring.landed) {
@@ -825,16 +834,32 @@ function initializeAndRunGame() {
                 forceAppliedToRingThisFrame = true;
             }
 
+            // Inclinación frontal/trasera (beta) del sensor
+            // sensorTiltY ahora representa un multiplicador de MAX_SENSOR_PITCH_FORCE (que es GRAVITY_BASE)
+            // sensorTiltY = -1 significa que el sensor quiere cancelar GRAVITY_BASE (fuerza NETA = 0)
+            // sensorTiltY = 0 significa que el sensor quiere que GRAVITY_BASE actúe normalmente
+            // sensorTiltY = -2 significa que el sensor quiere una fuerza hacia ARRIBA igual a GRAVITY_BASE (fuerza NETA = -GRAVITY_BASE)
+            if (sensorActive && sensorAvailable && Math.abs(sensorTiltY) > 0.001) { // Solo si hay un valor significativo
+                let forceYFromSensor = sensorTiltY * MAX_SENSOR_PITCH_FORCE;
+                let pitchMultiplier = 1;
+                if (ring.landed && !ring.isSlidingOnPeg) {
+                    pitchMultiplier = (LANDED_RING_JET_EFFECT_MULTIPLIER / LANDED_RING_WEIGHT_INCREASE_FACTOR);
+                }
+                ring.vy += forceYFromSensor * accelerationFactor * pitchMultiplier; // Se suma a la GRAVITY_BASE ya aplicada
+                forceAppliedToRingThisFrame = true;
+            }
+
+
             ring.x += ring.vx * accelerationFactor;
             ring.y += ring.vy * accelerationFactor;
 
-            if (ring.landed && !ring.isSlidingOnPeg) { // Solo si está encestado y no deslizándose
+            if (ring.landed && !ring.isSlidingOnPeg) {
                 const peg = pegs[ring.pegIndex];
                 if (peg) {
                     const pegTop = peg.bottomY - peg.height;
                     if (ring.y < pegTop - RING_OUTER_RADIUS * 0.5) {
                         handleRingEscape(ring, peg);
-                        return; // Importante: salir de la lógica de este aro para este frame
+                        return;
                     }
                     let idealX = peg.x;
                     const displacementX = ring.x - idealX;
@@ -850,18 +875,21 @@ function initializeAndRunGame() {
                         ring.x = idealX; ring.vx = 0;
                     }
 
-                    if (Math.abs(ring.vy) < GRAVITY_BASE * 1.5 && ring.y !== ring.finalYonPeg) {
+                    const strongSensorPushingUp = sensorActive && sensorTiltY < -1.5; // sensorTiltY -2 es max arriba
+                    const strongSensorPushingDown = sensorActive && sensorTiltY > -0.5 && sensorTiltY <= 0; // sensorTiltY 0 es max abajo (neto G)
+
+                    if (!strongSensorPushingUp && !strongSensorPushingDown && ring.y !== ring.finalYonPeg && Math.abs(ring.vy) < GRAVITY_BASE * 0.5) {
                         const dyToFinal = ring.finalYonPeg - ring.y;
-                        if (Math.abs(dyToFinal) > 0.1) {
-                           if (dyToFinal > 0) {
-                               ring.y += Math.min(dyToFinal, 2.0 * accelerationFactor);
-                           } else {
-                                ring.y += dyToFinal * 0.3 * accelerationFactor;
-                           }
+                         if (Math.abs(dyToFinal) > 0.1) {
+                            ring.y += dyToFinal * 0.2 * accelerationFactor;
                         }
                         if (Math.abs(ring.y - ring.finalYonPeg) < 0.5) {
                             ring.y = ring.finalYonPeg; ring.vy = 0;
                         }
+                    }
+                    if (ring.y > peg.bottomY + RING_OUTER_RADIUS) {
+                         ring.y = peg.bottomY + RING_OUTER_RADIUS;
+                         if (ring.vy > 0) ring.vy = 0;
                     }
                 }
                 ring.isFlat = true; ring.rotationAngle = Math.PI / 2; ring.rotationSpeed = 0;
@@ -903,9 +931,9 @@ function initializeAndRunGame() {
                 if (Math.abs(ring.zRotationSpeed) < 0.001 / (accelerationFactor || 1)) ring.zRotationSpeed = 0;
             }
 
-            if (!ring.landed || ring.isSlidingOnPeg) { // Colisiones entre aros solo si no está "fijo"
+            if (!ring.landed || ring.isSlidingOnPeg) {
                 for (let iter = 0; iter < 2; iter++) {
-                    for (let i = rings.indexOf(ring) + 1; i < rings.length; i++) { // Solo comparar con los siguientes
+                    for (let i = rings.indexOf(ring) + 1; i < rings.length; i++) {
                         const ring1 = ring;
                         const ring2 = rings[i];
                         if ((ring1.landed && !ring1.isSlidingOnPeg) || (ring2.landed && !ring2.isSlidingOnPeg)) continue;
@@ -942,7 +970,7 @@ function initializeAndRunGame() {
                 }
             }
 
-            let interactionOccurredThisFrame = false; // Local para colisiones con palos/entorno
+            let interactionOccurredThisFrame = false;
             if (!ring.landed && pegs) {
                 for (const peg of pegs) {
                     if (ring.landed || interactionOccurredThisFrame || peg.landedRings.length >= MAX_RINGS_PER_PEG || peg.isFullAndScored ) {
@@ -950,7 +978,6 @@ function initializeAndRunGame() {
                     }
                     const pegCenterX = peg.x;
                     const pegTop = peg.bottomY - peg.height;
-                    // Usar una definición simple de borde inferior para la colisión de enceste
                     const ringBottomForCollision = ring.y + RING_OUTER_RADIUS;
                     const prevRingBottomForCollision = prevRingY + RING_OUTER_RADIUS;
                     const landingCatchWidth = PEG_VISUAL_WIDTH * 1.8;
@@ -959,7 +986,7 @@ function initializeAndRunGame() {
                     const isFalling = ring.vy > 0;
 
                     if (isFalling && horizontallyAligned &&
-                        ringBottomForCollision >= pegTop && prevRingBottomForCollision < pegTop + RING_VISUAL_THICKNESS * 0.9 ) { // Umbral un poco más generoso
+                        ringBottomForCollision >= pegTop && prevRingBottomForCollision < pegTop + RING_VISUAL_THICKNESS * 0.9 ) {
                         const targetLandedY = (peg.bottomY - FLAT_RING_VIEW_THICKNESS / 2) - (peg.landedRings.length * FLAT_RING_VIEW_THICKNESS);
                         ring.isSlidingOnPeg = true;
                         ring.finalYonPeg = targetLandedY;
@@ -1029,16 +1056,52 @@ function initializeAndRunGame() {
                     }
                 }
             }
-        }); // Fin rings.forEach
-    } // Fin updateRings
+        });
+    }
 
 
     function handleOrientation(event) {
-        let gamma = event.gamma;
-        if (gamma === null || gamma === undefined) {return;}
-        const MAX_EFFECTIVE_GAMMA_SENSOR = 30;
-        sensorTiltX = gamma / MAX_EFFECTIVE_GAMMA_SENSOR;
-        sensorTiltX = Math.max(-1, Math.min(1, sensorTiltX));
+        let gamma = event.gamma; // Inclinación lateral (roll)
+        if (gamma !== null && gamma !== undefined && sensorActive) {
+            const MAX_EFFECTIVE_GAMMA_SENSOR = 30;
+            sensorTiltX = gamma / MAX_EFFECTIVE_GAMMA_SENSOR;
+            sensorTiltX = Math.max(-1, Math.min(1, sensorTiltX));
+        } else if (!sensorActive) {
+             sensorTiltX = 0;
+        }
+
+        let beta = event.beta; // Inclinación frontal-trasera (pitch)
+        if (beta !== null && beta !== undefined && sensorActive) {
+            if (beta >= 0) { // Parte superior del móvil levantada (o plano si beta=0)
+                if (beta <= SENSOR_PITCH_TRANSITION_END_UP) {
+                    // Interpolar sensorTiltY de -1 (a beta=0, para cancelar GRAVITY_BASE)
+                    // a 0 (a beta=SENSOR_PITCH_TRANSITION_END_UP, para que solo actúe GRAVITY_BASE)
+                    sensorTiltY = -1 + (beta / SENSOR_PITCH_TRANSITION_END_UP);
+                } else { // beta > SENSOR_PITCH_TRANSITION_END_UP
+                    sensorTiltY = 0; // La fuerza adicional del sensor es 0, solo actúa GRAVITY_BASE
+                }
+            } else { // Parte superior del móvil inclinada hacia ABAJO (beta negativo)
+                // Queremos que la fuerza neta vaya de 0 (a beta=0) a -GRAVITY_BASE (a beta=SENSOR_PITCH_TRANSITION_END_DOWN)
+                // La fuerza del sensor necesaria es sensorTiltY * MAX_SENSOR_PITCH_FORCE (que es GRAVITY_BASE)
+                // Neto = GRAVITY_BASE + sensorTiltY * GRAVITY_BASE
+                // Si Neto = 0 => sensorTiltY = -1
+                // Si Neto = -GRAVITY_BASE => GRAVITY_BASE + sensorTiltY * GRAVITY_BASE = -GRAVITY_BASE => sensorTiltY * GRAVITY_BASE = -2 * GRAVITY_BASE => sensorTiltY = -2
+
+                if (beta >= SENSOR_PITCH_TRANSITION_END_DOWN) { // beta es neg, SENSOR_PITCH_TRANSITION_END_DOWN es más neg. Ej: -10 >= -25
+                    // Interpolar sensorTiltY de -1 (a beta=0) a -2 (a beta=SENSOR_PITCH_TRANSITION_END_DOWN)
+                    // (beta / SENSOR_PITCH_TRANSITION_END_DOWN) va de 0 (en beta=0) a 1 (en beta=SENSOR_PITCH_TRANSITION_END_DOWN)
+                    sensorTiltY = -1 - (Math.abs(beta) / Math.abs(SENSOR_PITCH_TRANSITION_END_DOWN));
+                } else { // beta < SENSOR_PITCH_TRANSITION_END_DOWN (ej. beta = -30)
+                    sensorTiltY = -2; // Máxima fuerza hacia arriba del sensor
+                }
+            }
+             // Clamp final para seguridad, aunque la lógica de arriba debería manejarlo.
+            sensorTiltY = Math.max(-2, Math.min(0, sensorTiltY));
+
+
+        } else if (!sensorActive) { // Si el sensor no está activo, no aplicar ninguna fuerza de inclinación Y
+            sensorTiltY = 0;
+        }
     }
     function requestSensorPermission() {
         console.log(">>>> requestSensorPermission llamada.");
@@ -1059,13 +1122,14 @@ function initializeAndRunGame() {
                     if (messageBoard) setPersistentInstructions();
                 } else {
                     sensorActive = false;
+                    sensorTiltX = 0; sensorTiltY = 0;
                     if (messageBoard) showMessage("Permiso del sensor denegado.", 3000, true);
                     if(enableSensorButton) {enableSensorButton.textContent = "Sensor Denegado"; enableSensorButton.disabled = true;}
                     console.warn("Sensor: Permiso denegado. sensorActive AHORA ES FALSE");
                      if (messageBoard) setPersistentInstructions();
                 }
             }).catch(error => {
-                sensorActive = false;
+                sensorActive = false; sensorTiltX = 0; sensorTiltY = 0;
                 console.error("Sensor: Error al solicitar permiso:", error);
                 if (messageBoard) showMessage("Error al activar sensor.", 3000, true);
                 if (messageBoard) setPersistentInstructions();
@@ -1081,7 +1145,7 @@ function initializeAndRunGame() {
             if (messageBoard) setPersistentInstructions();
         } else {
             sensorAvailable = false;
-            sensorActive = false;
+            sensorActive = false; sensorTiltX = 0; sensorTiltY = 0;
             console.warn("Sensor: DeviceOrientationEvent no soportado.");
             if (messageBoard) showMessage("Sensor no soportado.", 3000, true);
             if(enableSensorButton) enableSensorButton.style.display = 'none';
@@ -1134,7 +1198,7 @@ function initializeAndRunGame() {
             }
             if (tiltLeftButton && (!sensorActive || !sensorAvailable) ) tiltLeftButton.style.display = 'flex';
             if(tiltRightButton && (!sensorActive || !sensorAvailable) ) tiltRightButton.style.display = 'flex';
-            sensorActive = false;
+            sensorActive = false; sensorTiltX = 0; sensorTiltY = 0;
             if(messageBoard) setPersistentInstructions();
             if (!gameLoopId) {
                 if (typeof performance !== 'undefined' && performance.now) { lastTime = performance.now(); }
@@ -1272,8 +1336,7 @@ function initializeAndRunGame() {
 
         if(rings) updateRings(forceForTiltUpdate, deltaTime);
 
-        drawAllPegsAndLandedRings(); // Dibuja palos y aros YA encestados y fijos
-        // Dibuja aros que no están encestados, o que están deslizándose, o que acaban de escapar
+        drawAllPegsAndLandedRings();
         if(rings) rings.forEach(ring => {
              if (!ring.landed || ring.isSlidingOnPeg || (ring.landed && ring.pegIndex === -1 && !ring.isSlidingOnPeg) ) {
                 drawRing(ring);
