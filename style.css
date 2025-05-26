@@ -64,3 +64,52 @@ body { display: flex; flex-direction: column; justify-content: center; align-ite
 .close-button:hover { color: #FFA500; }
 .instructions-section { margin-bottom: 15px; }
 /* Estilos para .level-transition-content eliminados */
+
+/* ... (resto de tu CSS) ... */
+
+.game-title-bar {
+    font-size: 22px;
+    font-weight: bold;
+    color: #fff;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.7);
+    /* margin-bottom: 10px; */ /* Reducir o quitar margen inferior si hay subtítulo */
+    padding: 8px 15px;
+    background-color: transparent;
+    border-radius: 0;
+    width: auto;
+    max-width: calc(100% - 30px);
+    text-align: center;
+    box-sizing: border-box;
+}
+
+.game-subtitle-bar { /* NUEVO ESTILO PARA EL SUBTÍTULO */
+    font-size: 14px; /* Ajusta el tamaño como prefieras */
+    color: #f0f0f0; /* Un color un poco más tenue que el título */
+    text-shadow: 1px 1px 1px rgba(0,0,0,0.5);
+    margin-top: -8px; /* Ajusta para acercarlo al título */
+    margin-bottom: 10px;
+    text-align: center;
+    width: 100%;
+}
+
+#startScreen h1 {
+    font-size: 2.8em;
+    color: #FFA500;
+    margin-bottom: 5px; /* Reducir margen para acercar el subtítulo */
+    text-shadow: 2px 2px 4px #000;
+}
+
+#startScreen .subtitle-text { /* NUEVO ESTILO PARA EL SUBTÍTULO EN START SCREEN */
+    font-size: 1.0em; /* Ajusta según veas */
+    color: #f0f0f0;
+    margin-top: 0px;
+    margin-bottom: 15px; /* Espacio antes del siguiente párrafo */
+}
+
+
+#startScreen p {
+    font-size: 1.2em;
+    margin: 10px 0;
+}
+
+/* ... (resto de tu CSS) ... */
