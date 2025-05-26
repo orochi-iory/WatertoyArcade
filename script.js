@@ -33,6 +33,7 @@ function initializeAndRunGame() {
     const MAX_RINGS_PER_PEG = 6;
     const RING_COLORS = ['#FF4136', '#0074D9', '#2ECC40', '#FFDC00'];
     const TOTAL_COLORS = RING_COLORS.length;
+    const NUM_PEGS = 4;
     const GRAVITY_BASE = 0.038;
     const MAX_JET_PRESSURE = 1.0;
     const JET_PRESSURE_INCREMENT_BASE = 0.05;
@@ -48,8 +49,8 @@ function initializeAndRunGame() {
     const MAX_SENSOR_TILT_FORCE = 0.55;
 
     const SENSOR_PITCH_TRANSITION_END_UP = 30;
-    const SENSOR_PITCH_TRANSITION_END_DOWN = -25; // Volvemos a -25 para prueba
-    const MAX_SENSOR_PITCH_FORCE = GRAVITY_BASE * 1.8; // Fuerza que el sensor puede AÑADIR/RESTAR
+    const SENSOR_PITCH_TRANSITION_END_DOWN = -25;
+    const MAX_SENSOR_PITCH_FORCE = GRAVITY_BASE * 1.8;
 
     const WATER_FRICTION_COEFF = 0.028;
     const BOUNCE_FACTOR = -0.2;
@@ -62,7 +63,13 @@ function initializeAndRunGame() {
     const RING_OUTLINE_WIDTH_ON_SCREEN = 1.0;
     const FLAT_RING_VIEW_THICKNESS = 7;
     const GROUND_FLAT_RING_THICKNESS = 5;
-    const MAX_TOTAL_RINGS_ON_SCREEN = MAX_RINGS_PER_PEG * TOTAL_COLORS;
+    const MAX_TOTAL_RINGS_ON_SCREEN = MAX_RINGS_PER_PEG * NUM_PEGS;
+
+    const NORMAL_FULL_PEG_FINAL_MULTIPLIER = 2;
+    const MONO_FULL_PEG_FINAL_MULTIPLIER = 10;
+    const PERFECT_GAME_FINAL_MULTIPLIER = 100;
+    const PEG_LOCK_EMOJI = "🔒";
+    const PEG_LOCK_FONT_SIZE = 20;
 
     const LANDED_RING_JET_EFFECT_MULTIPLIER = 0.25;
     const LANDED_RING_MAX_DISPLACEMENT_X = PEG_VISUAL_WIDTH * 0.5;
@@ -87,12 +94,7 @@ function initializeAndRunGame() {
     let gameRunning = false;
     let landedRingsCount = 0;
     let gameOver = false;
-    let baseScoreFromRings = 0;
-    let bonusScoreFromColorStreak = 0;
-    let bonusScoreFromFullPegsGeneral = 0;
-    let bonusScoreFromMonoColorPegsSpecific = 0;
-    let allPegsCompletedBonusFactor = 1;
-    let masterBonusFactor = 1;
+
     let currentScoreDisplaySize = 22;
     const SCORE_NORMAL_SIZE = 22;
     const SCORE_PULSE_SIZE = 26;
@@ -120,7 +122,9 @@ function initializeAndRunGame() {
             vx: (Math.random() - 0.5) * 0.4, vy: (Math.random() - 0.5) * 0.4,
             color: color, originalColor: color,
             landed: false, pegIndex: -1, landedOrder: -1,
-            basePoints: 25, awardedPoints: 0, colorStreakBonusGiven: 0,
+            basePoints: 25,
+            valueWhenLanded: 0,
+            isColorStreakSource: false,
             rotationAngle: Math.random() * Math.PI * 2,
             initialRotationSpeed: (Math.random() < 0.5 ? -1 : 1) * speedMagnitude,
             rotationSpeed: 0,
@@ -152,22 +156,17 @@ function initializeAndRunGame() {
                 height: gameScreenHeight * data.heightFactor,
                 landedRings: [],
                 isFullAndScored: false,
-                isMonoColor: false,
-                monoColorValue: null,
-                fullBonusAwarded: 0,
-                monoBonusAwarded: 0
+                isLocked: false,
+                isActuallyMonoColorAndFull: false,
+                appliedNormalMultiplier: false, // Para rastrear si el x2 de este palo ya se aplicó y revirtió
+                colorStreakValue: 0,
+                lastColorOnPeg: null
             });
         });
     }
 
     function initGame() {
         score = 0;
-        baseScoreFromRings = 0;
-        bonusScoreFromColorStreak = 0;
-        bonusScoreFromFullPegsGeneral = 0;
-        bonusScoreFromMonoColorPegsSpecific = 0;
-        allPegsCompletedBonusFactor = 1;
-        masterBonusFactor = 1;
         scorePulseActive = false;
         scorePulseTimer = 0;
         currentScoreDisplaySize = SCORE_NORMAL_SIZE;
@@ -308,6 +307,16 @@ function initializeAndRunGame() {
             ctx.roundRect(peg.x - PEG_VISUAL_WIDTH / 2, pegTopY, PEG_VISUAL_WIDTH, peg.height, [PEG_VISUAL_WIDTH/3, PEG_VISUAL_WIDTH/3, 0, 0]);
             ctx.fill();
             ctx.stroke();
+
+            if (peg.isLocked) {
+                ctx.save();
+                ctx.font = `${PEG_LOCK_FONT_SIZE}px Arial`;
+                ctx.fillStyle = "rgba(50,50,50,0.8)";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText(PEG_LOCK_EMOJI, peg.x, pegTopY - PEG_LOCK_FONT_SIZE * 0.7);
+                ctx.restore();
+            }
             peg.landedRings.forEach(drawRing);
         });
     }
@@ -378,6 +387,9 @@ function initializeAndRunGame() {
             currentScoreDisplaySize = SCORE_PULSE_SIZE;
         } else if (pointsToAdd < 0) {
             score += pointsToAdd;
+            scorePulseActive = true;
+            scorePulseTimer = SCORE_PULSE_DURATION;
+            currentScoreDisplaySize = SCORE_PULSE_SIZE;
         }
         if (message && message !== "") {
             showMessage(message, 2500);
@@ -386,45 +398,26 @@ function initializeAndRunGame() {
     }
 
     function checkAndApplyBonuses(landedRing, peg) {
-        let pointsForThisSpecificRing = landedRing.basePoints;
+        landedRing.valueWhenLanded = landedRing.basePoints;
         let bonusMessageText = "";
-        landedRing.colorStreakBonusGiven = 0;
-        baseScoreFromRings += landedRing.basePoints;
+
+        if (peg.landedRings.length > 1 && landedRing.landedOrder > 0 && peg.lastColorOnPeg === landedRing.color) {
+            landedRing.valueWhenLanded = peg.colorStreakValue * 2;
+            bonusMessageText += ` Racha x${landedRing.valueWhenLanded / landedRing.basePoints}!`;
+        }
+        peg.colorStreakValue = landedRing.valueWhenLanded;
+        peg.lastColorOnPeg = landedRing.color;
+
+        updateScore(landedRing.valueWhenLanded);
+        createFloatingScore(landedRing.x, landedRing.finalYonPeg - RING_OUTER_RADIUS, `+${landedRing.valueWhenLanded}${bonusMessageText}`, landedRing.color);
 
         if ('vibrate' in navigator) { navigator.vibrate(75); }
-
-        let mightBecomeMonoColor = true;
-        if(peg.landedRings.length === MAX_RINGS_PER_PEG) {
-            const firstColorInPeg = peg.landedRings[0].color;
-            for(const r of peg.landedRings) {
-                if (r.color !== firstColorInPeg) {
-                    mightBecomeMonoColor = false;
-                    break;
-                }
-            }
-        } else {
-            mightBecomeMonoColor = false;
-        }
-
-        if (peg.landedRings.length > 1 && !mightBecomeMonoColor && landedRing.landedOrder > 0 ) {
-            const previousRingInStack = peg.landedRings[landedRing.landedOrder -1];
-            if (previousRingInStack && previousRingInStack.color === landedRing.color) {
-                let colorStreakBonus = landedRing.basePoints;
-                pointsForThisSpecificRing += colorStreakBonus;
-                bonusScoreFromColorStreak += colorStreakBonus;
-                landedRing.colorStreakBonusGiven = colorStreakBonus;
-                bonusMessageText += ` Color x2!`;
-            }
-        }
-
-        landedRing.awardedPoints = pointsForThisSpecificRing;
-        createFloatingScore(landedRing.x, landedRing.finalYonPeg - RING_OUTER_RADIUS, `+${pointsForThisSpecificRing}${bonusMessageText}`, landedRing.color);
-        updateScore(pointsForThisSpecificRing);
-
         landedRingsCount++;
 
         if (peg.landedRings.length === MAX_RINGS_PER_PEG && !peg.isFullAndScored) {
             peg.isFullAndScored = true;
+            peg.isLocked = true;
+
             let isCurrentPegMonoColor = true;
             const firstLandedColor = peg.landedRings[0].color;
             for (let k = 1; k < MAX_RINGS_PER_PEG; k++) {
@@ -434,34 +427,29 @@ function initializeAndRunGame() {
                 }
             }
 
-            let additionalBonusScore = 0;
-            let pegCompletionMessage = "";
-            peg.fullBonusAwarded = 0;
-            peg.monoBonusAwarded = 0;
-
             if (isCurrentPegMonoColor) {
-                peg.isMonoColor = true;
+                peg.isActuallyMonoColorAndFull = true;
                 peg.monoColorValue = firstLandedColor;
-                let currentPegAwardedPointsSum = 0;
-                peg.landedRings.forEach(r => currentPegAwardedPointsSum += r.awardedPoints);
-                let targetMonoScore = (landedRing.basePoints * MAX_RINGS_PER_PEG) * 10;
-                additionalBonusScore = targetMonoScore - currentPegAwardedPointsSum;
-                if(additionalBonusScore < 0) additionalBonusScore = 0;
-                bonusScoreFromMonoColorPegsSpecific += additionalBonusScore;
-                peg.monoBonusAwarded = additionalBonusScore;
-                pegCompletionMessage = `PALO MONOCOLOR! (x10)`;
-            } else {
-                let pegTotalAwardedPoints = 0;
-                peg.landedRings.forEach(r => {
-                    pegTotalAwardedPoints += r.awardedPoints;
-                });
-                additionalBonusScore = pegTotalAwardedPoints * 3;
-                bonusScoreFromFullPegsGeneral += additionalBonusScore;
-                peg.fullBonusAwarded = additionalBonusScore;
-                pegCompletionMessage = `PALO LLENO! (x4)`;
+                if (peg.appliedNormalMultiplier) { // Si antes era normal y aplicó x2, ahora es mono
+                    score = Math.round(score / NORMAL_FULL_PEG_FINAL_MULTIPLIER); // Revertir el x2
+                    peg.appliedNormalMultiplier = false; // Ya no es normal
+                    showMessage(`¡PALO MONOCOLOR! (x2 revertido, x${MONO_FULL_PEG_FINAL_MULTIPLIER} al final)`, 2500);
+                } else {
+                    showMessage(`¡PALO MONOCOLOR! (x${MONO_FULL_PEG_FINAL_MULTIPLIER} al final)`, 2500);
+                }
+                peg.providesNormalMultiplier = false; // Un palo monocolor no da el x2 normal
+            } else { // Palo lleno normal
+                peg.isActuallyMonoColorAndFull = false;
+                if (!peg.appliedNormalMultiplier) { // Solo aplicar x2 si no se ha hecho
+                    score = Math.round(score * NORMAL_FULL_PEG_FINAL_MULTIPLIER);
+                    peg.appliedNormalMultiplier = true; // Marcar que este palo aplicó su x2
+                    showMessage(`¡PALO LLENO! Score x${NORMAL_FULL_PEG_FINAL_MULTIPLIER}!`, 2500);
+                    scorePulseActive = true; scorePulseTimer = SCORE_PULSE_DURATION; currentScoreDisplaySize = SCORE_PULSE_SIZE; // Forzar pulso
+                } else {
+                     showMessage(`¡PALO LLENO!`, 2500); // Ya se había aplicado el x2 (o es un error de lógica si llega aquí)
+                }
+                peg.providesNormalMultiplier = true; // Marcar que este palo (si no se rompe) contribuirá al x2 final
             }
-
-            if(additionalBonusScore > 0) updateScore(additionalBonusScore, pegCompletionMessage);
 
             peg.landedRings.forEach(r => {
                 r.isFlashing = true;
@@ -470,57 +458,50 @@ function initializeAndRunGame() {
                 r.flashToggleCounter = 0;
             });
 
-            checkAllPegsCompleted();
+            if (landedRingsCount >= MAX_TOTAL_RINGS_ON_SCREEN) {
+                triggerGameOver();
+            }
         }
     }
 
     function handleRingEscape(ring, peg) {
-        console.log(`Ring ${ring.originalColor} (ID: ${rings.indexOf(ring)}) escapó del peg ${peg.id}. Puntos previos: ${ring.awardedPoints}, Streak: ${ring.colorStreakBonusGiven}`);
-        score -= ring.awardedPoints;
-        baseScoreFromRings -= ring.basePoints;
-        if (ring.colorStreakBonusGiven > 0) {
-            bonusScoreFromColorStreak -= ring.colorStreakBonusGiven;
-        }
-        createFloatingScore(ring.x, ring.y, `-${ring.awardedPoints} Escapó!`, '#FF6347');
+        console.log(`Ring ${ring.originalColor} escapó. Puntos previos: ${ring.valueWhenLanded}`);
+        updateScore(-ring.valueWhenLanded);
+
+        createFloatingScore(ring.x, ring.y - RING_OUTER_RADIUS, `-${ring.valueWhenLanded} Escapó!`, '#FF6347', 120, 1.1);
 
         const ringIndexInPeg = peg.landedRings.indexOf(ring);
         if (ringIndexInPeg > -1) {
             peg.landedRings.splice(ringIndexInPeg, 1);
         }
 
+        peg.colorStreakValue = 0;
+        peg.lastColorOnPeg = null;
+        if (peg.landedRings.length > 0) {
+            peg.lastColorOnPeg = peg.landedRings[peg.landedRings.length - 1].color;
+            peg.colorStreakValue = peg.landedRings[peg.landedRings.length - 1].valueWhenLanded;
+        }
+
         peg.landedRings.forEach((remainingRing, newIndex) => {
             remainingRing.landedOrder = newIndex;
-            const newFinalYonPeg = (peg.bottomY - FLAT_RING_VIEW_THICKNESS / 2) - (newIndex * FLAT_RING_VIEW_THICKNESS);
-            remainingRing.finalYonPeg = newFinalYonPeg;
+            remainingRing.finalYonPeg = (peg.bottomY - FLAT_RING_VIEW_THICKNESS / 2) - (newIndex * FLAT_RING_VIEW_THICKNESS);
         });
 
         landedRingsCount--;
 
-        let pegWasPreviouslyFullAndScored = peg.isFullAndScored;
-        if (pegWasPreviouslyFullAndScored) {
+        if (peg.isFullAndScored) {
             peg.isFullAndScored = false;
-            peg.landedRings.forEach(r => {
-                r.isFlashing = false;
-                r.color = r.originalColor;
-            });
+            peg.isLocked = false;
 
-            if (peg.isMonoColor) {
-                console.log(`Peg ${peg.id} ya no es monocolor. Reversando bono: ${peg.monoBonusAwarded}`);
-                if (peg.monoBonusAwarded > 0) {
-                    score -= peg.monoBonusAwarded;
-                    bonusScoreFromMonoColorPegsSpecific -= peg.monoBonusAwarded;
-                    peg.monoBonusAwarded = 0;
-                }
-                peg.isMonoColor = false;
-                peg.monoColorValue = null;
-            } else {
-                console.log(`Peg ${peg.id} ya no está lleno. Reversando bono: ${peg.fullBonusAwarded}`);
-                if (peg.fullBonusAwarded > 0) {
-                    score -= peg.fullBonusAwarded;
-                    bonusScoreFromFullPegsGeneral -= peg.fullBonusAwarded;
-                    peg.fullBonusAwarded = 0;
-                }
+            if (peg.appliedNormalMultiplier && !peg.isActuallyMonoColorAndFull) {
+                score = Math.round(score / NORMAL_FULL_PEG_FINAL_MULTIPLIER);
+                peg.appliedNormalMultiplier = false;
+                showMessage("Palo roto. ¡x2 revertido!", 2000);
+                scorePulseActive = true; scorePulseTimer = SCORE_PULSE_DURATION; currentScoreDisplaySize = SCORE_PULSE_SIZE;
             }
+            peg.isActuallyMonoColorAndFull = false; // Ya no es monocolor si se rompió
+            peg.providesNormalMultiplier = false; // Ya no provee multiplicador si se rompió
+            peg.landedRings.forEach(r => { r.isFlashing = false; r.color = r.originalColor; });
         }
 
         ring.landed = false;
@@ -528,8 +509,8 @@ function initializeAndRunGame() {
         ring.landedOrder = -1;
         ring.isSlidingOnPeg = false;
         ring.finalYonPeg = 0;
-        ring.awardedPoints = 0;
-        ring.colorStreakBonusGiven = 0;
+        ring.valueWhenLanded = 0;
+        ring.isColorStreakSource = false;
         ring.isFlashing = false;
         ring.color = ring.originalColor;
         ring.isFlat = false;
@@ -539,59 +520,61 @@ function initializeAndRunGame() {
         ring.rotationSpeed = ring.initialRotationSpeed * (Math.random() < 0.5 ? 1.2 : -1.2);
         ring.zRotationSpeed = (Math.random() - 0.5) * 0.05;
 
-        if (pegWasPreviouslyFullAndScored) {
-            const allStillFull = pegs.every(p => p.isFullAndScored);
-            if (!allStillFull) {
-                if (allPegsCompletedBonusFactor > 1) {
-                    allPegsCompletedBonusFactor = 1;
-                    showMessage("Palo roto. ¡Bono x2 perdido!", 2500);
-                }
-                if (masterBonusFactor > 1) {
-                    masterBonusFactor = 1;
-                    showMessage("Palo roto. ¡BONO MAESTRO perdido!", 3000);
-                }
-            }
-        }
         if (score < 0) score = 0;
     }
 
-
-    function checkAllPegsCompleted() {
-        if (allPegsCompletedBonusFactor > 1 && masterBonusFactor > 1) return;
-        if(!pegs) return;
-        const allPegsNowFull = pegs.every(p => p.isFullAndScored);
-
-        if (allPegsNowFull && allPegsCompletedBonusFactor === 1) {
-            allPegsCompletedBonusFactor = 2;
-            showMessage("TODOS LOS PALOS LLENOS! Puntos x2!", 3500, true);
-            let monoColorPegCount = 0;
-            const usedColorsForMaster = new Set();
-            pegs.forEach(p => {
-                if (p.isMonoColor) {
-                    monoColorPegCount++;
-                    usedColorsForMaster.add(p.monoColorValue);
-                }
-            });
-            if (monoColorPegCount === TOTAL_COLORS && usedColorsForMaster.size === TOTAL_COLORS) {
-                masterBonusFactor = 100;
-                showMessage("¡¡BONO MAESTRO!! Puntuación Final x100!", 5000, true);
-            }
-            triggerGameOver();
-        }
-    }
 
     function triggerGameOver() {
         if (gameOver) return;
         gameOver = true;
         gameRunning = false;
-        let finalScoreCalculation = baseScoreFromRings + bonusScoreFromColorStreak + bonusScoreFromFullPegsGeneral + bonusScoreFromMonoColorPegsSpecific;
 
-        if(masterBonusFactor > 1) {
-            let scoreBeforeAnyFinalMultiplier = baseScoreFromRings + bonusScoreFromColorStreak + bonusScoreFromFullPegsGeneral + bonusScoreFromMonoColorPegsSpecific;
-            finalScoreCalculation = scoreBeforeAnyFinalMultiplier * masterBonusFactor;
-        } else if(allPegsCompletedBonusFactor > 1) {
-            finalScoreCalculation *= allPegsCompletedBonusFactor;
+        let scoreBaseParaMultiplicadoresFinales = 0;
+        rings.forEach(r => {
+            if (r.landed && r.pegIndex !== -1) { // Solo los aros que terminaron realmente encestados
+                scoreBaseParaMultiplicadoresFinales += r.valueWhenLanded;
+            }
+        });
+
+        let finalScoreCalculation = scoreBaseParaMultiplicadoresFinales; // Partimos del score puro de aros + rachas
+        let scoreMultiplierReason = "";
+
+        let completedMonoColorPegsCount = 0;
+        let uniqueColorsInMonoPegs = new Set();
+        let normalPegMultiplierProduct = 1;
+        let actualNormalPegsCountedForDisplay = 0;
+
+        pegs.forEach(p => {
+            if (p.isFullAndScored) {
+                if (p.isActuallyMonoColorAndFull) {
+                    completedMonoColorPegsCount++;
+                    uniqueColorsInMonoPegs.add(p.monoColorValue);
+                } else if (p.appliedNormalMultiplier) { // Si fue un palo normal que SÍ aplicó su x2
+                    normalPegMultiplierProduct *= NORMAL_FULL_PEG_FINAL_MULTIPLIER;
+                    actualNormalPegsCountedForDisplay++;
+                }
+            }
+        });
+
+        if (completedMonoColorPegsCount === NUM_PEGS && uniqueColorsInMonoPegs.size === TOTAL_COLORS) {
+            finalScoreCalculation = scoreBaseParaMultiplicadoresFinales * PERFECT_GAME_FINAL_MULTIPLIER;
+            scoreMultiplierReason = `¡JUEGO PERFECTO! x${PERFECT_GAME_FINAL_MULTIPLIER}`;
+        } else {
+            // Aplicar multiplicador de palos normales llenos AL SCORE BASE
+            finalScoreCalculation *= normalPegMultiplierProduct; // Esto es correcto si finalScoreCalculation es el base.
+            if (normalPegMultiplierProduct > 1) {
+                scoreMultiplierReason += `Normal x${normalPegMultiplierProduct}`;
+            }
+
+            // Aplicar multiplicador de palos monocolor AL RESULTADO ANTERIOR
+            if (completedMonoColorPegsCount > 0) {
+                let monoProduct = Math.pow(MONO_FULL_PEG_FINAL_MULTIPLIER, completedMonoColorPegsCount);
+                finalScoreCalculation *= monoProduct;
+                if (scoreMultiplierReason && normalPegMultiplierProduct > 1) scoreMultiplierReason += ", ";
+                scoreMultiplierReason += `Monocolor x${monoProduct}`;
+            }
         }
+
         score = Math.round(finalScoreCalculation);
         if (score < 0) score = 0;
 
@@ -599,9 +582,10 @@ function initializeAndRunGame() {
             cancelAnimationFrame(gameLoopId);
             gameLoopId = null;
         }
-        showEndGameScreen();
+        showEndGameScreen(scoreMultiplierReason, actualNormalPegsCountedForDisplay, completedMonoColorPegsCount, scoreBaseParaMultiplicadoresFinales);
     }
-    function showEndGameScreen() {
+
+    function showEndGameScreen(multiplierReason = "", numNormalFullPegs = 0, numMonoFullPegs = 0, baseScoreDisplay = 0) {
         const existingScreen = document.getElementById('endGameScreen');
         if (existingScreen) existingScreen.parentNode.removeChild(existingScreen);
 
@@ -609,22 +593,23 @@ function initializeAndRunGame() {
         screenDOM.id = 'endGameScreen';
         screenDOM.classList.add('visible');
 
-        let summaryHTML = `<h2>¡Juego Terminado!</h2><p>Puntos Base Aros: ${baseScoreFromRings}</p>`;
-        if (bonusScoreFromColorStreak > 0) summaryHTML += `<p>Bono Racha Color: +${bonusScoreFromColorStreak}</p>`;
-        if (bonusScoreFromFullPegsGeneral > 0) summaryHTML += `<p>Bono Palos Llenos (Normal): +${bonusScoreFromFullPegsGeneral}</p>`;
-        if (bonusScoreFromMonoColorPegsSpecific > 0) summaryHTML += `<p>Bono Palos Monocolor: +${bonusScoreFromMonoColorPegsSpecific}</p>`;
-        let subTotalBeforeMultipliers = baseScoreFromRings + bonusScoreFromColorStreak + bonusScoreFromFullPegsGeneral + bonusScoreFromMonoColorPegsSpecific;
-        if (subTotalBeforeMultipliers < 0) subTotalBeforeMultipliers = 0;
+        let summaryHTML = `<h2>¡Juego Terminado!</h2><p>Puntos (Aros + Rachas): ${baseScoreDisplay}</p>`;
 
-
-        if (masterBonusFactor > 1) {
-            summaryHTML += `<p style="color: gold; font-weight: bold;">¡BONO MAESTRO!: x${masterBonusFactor} (sobre ${subTotalBeforeMultipliers})</p>`;
-        } else if (allPegsCompletedBonusFactor > 1) {
-             summaryHTML += `<p style="color: lightblue;">Bono Todos Palos Llenos: x${allPegsCompletedBonusFactor} (sobre ${subTotalBeforeMultipliers})</p>`;
+        if (multiplierReason.includes("PERFECTO")) {
+            summaryHTML += `<p style="color: gold; font-weight: bold;">${multiplierReason}</p>`;
+        } else {
+             let reasonText = "";
+            if (numNormalFullPegs > 0) {
+                reasonText += `Palos Normales x${Math.pow(NORMAL_FULL_PEG_FINAL_MULTIPLIER,numNormalFullPegs)}`;
+            }
+            if (numMonoFullPegs > 0) {
+                if(reasonText) reasonText += ", ";
+                reasonText += `Palos Monocolor x${Math.pow(MONO_FULL_PEG_FINAL_MULTIPLIER,numMonoFullPegs)}`;
+            }
+            if(reasonText) summaryHTML += `<p style="color: lightblue;">Multiplicadores: ${reasonText}</p>`;
         }
-        let finalDisplayScore = score;
-        if (finalDisplayScore < 0) finalDisplayScore = 0;
-        summaryHTML += `<h3 style="margin-top: 20px; color: #FFD700;">PUNTUACIÓN FINAL: ${finalDisplayScore}</h3>`;
+
+        summaryHTML += `<h3 style="margin-top: 20px; color: #FFD700;">PUNTUACIÓN FINAL: ${score}</h3>`;
 
         const playAgainButton = document.createElement('button');
         playAgainButton.textContent = 'Jugar de Nuevo';
@@ -633,7 +618,6 @@ function initializeAndRunGame() {
             if(startScreen) startScreen.style.display = 'flex';
             if(howToPlayButton) howToPlayButton.style.display = 'inline-block';
             gameRunning = false;
-            score = 0;
             currentScoreDisplaySize = SCORE_NORMAL_SIZE;
             if (enableSensorButton && sensorAvailable) {
                  enableSensorButton.style.display = 'inline-block';
@@ -834,7 +818,7 @@ function initializeAndRunGame() {
                 forceAppliedToRingThisFrame = true;
             }
 
-            if (sensorActive && sensorAvailable && Math.abs(sensorTiltY) > 0.001) { // Umbral muy pequeño para reaccionar
+            if (sensorActive && sensorAvailable && Math.abs(sensorTiltY) > 0.001) {
                 let forceYFromSensor = sensorTiltY * MAX_SENSOR_PITCH_FORCE;
                 let pitchMultiplier = 1;
                 if (ring.landed && !ring.isSlidingOnPeg) {
@@ -868,38 +852,18 @@ function initializeAndRunGame() {
                         ring.x = idealX; ring.vx = 0;
                     }
 
-                    // CORRECCIÓN BUG APILAMIENTO Y LÍMITES
-                    // 1. Límite inferior es su propia finalYonPeg (no puede atravesar la base del apilamiento)
                     if (ring.y > ring.finalYonPeg) {
                         ring.y = ring.finalYonPeg;
-                        if (ring.vy > 0) ring.vy = 0; // Detener si iba más abajo
+                        if (ring.vy > 0 && (!sensorActive || sensorTiltY >= -1)) ring.vy = 0;
                     }
 
-                    // 2. Límite superior: no puede pasar al aro de arriba (si existe)
-                    if (ring.landedOrder < peg.landedRings.length - 1) { // Si tiene un aro encima
+                    if (ring.landedOrder < peg.landedRings.length - 1) {
                         const ringAbove = peg.landedRings[ring.landedOrder + 1];
-                        // El "techo" para este aro es la base del aro de arriba
                         const ceilingForThisRing = ringAbove.finalYonPeg + FLAT_RING_VIEW_THICKNESS;
-                        if (ring.y < ceilingForThisRing) {
+                         if (ring.y < ceilingForThisRing) {
                             ring.y = ceilingForThisRing;
-                            if (ring.vy < 0) ring.vy = 0; // Detener si intentaba subir más
+                            if (ring.vy < 0) ring.vy = 0;
                         }
-                    }
-                    // 3. El aro de más abajo no puede ser empujado por debajo de su finalYonPeg
-                    // (Ya cubierto por ring.y > ring.finalYonPeg, pero es bueno tenerlo en mente)
-
-
-                    // Suave retorno a finalYonPeg si no hay fuerzas significativas y no está ya ahí
-                     const significantSensorForceActive = sensorActive && Math.abs(sensorTiltY * MAX_SENSOR_PITCH_FORCE) > GRAVITY_BASE * 0.2;
-                     const isBeingPushedByJet = forceAppliedToRingThisFrame && (leftJetPressure > 0.1 || rightJetPressure > 0.1); // Más específico para chorros
-
-                    if (!significantSensorForceActive && !isBeingPushedByJet && Math.abs(ring.y - ring.finalYonPeg) > 0.2) {
-                         const dyToFinal = ring.finalYonPeg - ring.y;
-                         ring.y += dyToFinal * 0.4 * accelerationFactor;
-                         if (Math.abs(ring.y - ring.finalYonPeg) < 0.2) {
-                            ring.y = ring.finalYonPeg;
-                            // No resetear vy aquí necesariamente, para permitir asentamiento suave
-                         }
                     }
                 }
                 ring.isFlat = true; ring.rotationAngle = Math.PI / 2; ring.rotationSpeed = 0;
@@ -983,7 +947,8 @@ function initializeAndRunGame() {
             let interactionOccurredThisFrame = false;
             if (!ring.landed && pegs) {
                 for (const peg of pegs) {
-                    if (ring.landed || interactionOccurredThisFrame || peg.landedRings.length >= MAX_RINGS_PER_PEG || peg.isFullAndScored ) {
+                     if (peg.isLocked) continue;
+                    if (ring.landed || interactionOccurredThisFrame || peg.landedRings.length >= MAX_RINGS_PER_PEG ) {
                         continue;
                     }
                     const pegCenterX = peg.x;
@@ -1098,13 +1063,11 @@ function initializeAndRunGame() {
                     sensorTiltY = -2;
                 }
             }
-            // Clamp sensorTiltY. Si beta >= 0, max es 0. Si beta < 0, min es -2.
              if (beta >= 0) {
                 sensorTiltY = Math.max(-1, Math.min(0, sensorTiltY));
             } else {
                 sensorTiltY = Math.max(-2, Math.min(-1, sensorTiltY));
             }
-
 
         } else if (!sensorActive) {
             sensorTiltX = 0;
@@ -1357,7 +1320,7 @@ function initializeAndRunGame() {
         drawScoreOnCanvas();
 
         if (landedRingsCount >= MAX_TOTAL_RINGS_ON_SCREEN && !gameOver) {
-            checkAllPegsCompleted();
+            triggerGameOver();
         }
 
         if(gameRunning && !gameOver){
